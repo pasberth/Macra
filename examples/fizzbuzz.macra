@@ -4,7 +4,7 @@
       !assign x y.
     }.
   #end
-  #context constExpr
+  #context expression
     :=> = {| var expr |
       !lambda var expr.
     }.
