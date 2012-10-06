@@ -1,0 +1,111 @@
+#macro
+  #context toplevel
+    := = {| x y |
+      !assign x y.
+    }.
+  #end
+  #context constExpr
+    :=> = {| var expr |
+      !lambda var expr.
+    }.
+    :if = {| expr1  expr2 |
+      !if expr1 !return expr2.
+    }.
+    | = {| expr1 "then" expr2 guard |
+      !if expr1 !return expr2.
+      !return guard
+    }.
+    @car = {| lis |
+      !return z =>
+        z x :=> y :=> x.
+    }.
+    :inject = {| lis initial "into" iter |
+      !return inject lis initial iter.
+    }.
+  #end
+  #context boolean
+    :is = {| expr1 expr2 |
+      !if !equal expr1 expr2 !return true.
+      !return false.
+    }.
+  #end
+  #context number
+    :% = {| num1 num2 |
+      !return !mod num1 num2.
+    }.
+    @length = {| lis |
+      !return length lis.
+    }.
+  #end
+  #context list
+    :to = {| num1 num2 |
+      !return to num1 num2.
+    }.
+    @cdr = {| lis |
+      !return z =>
+        z x :=> y :=> y
+    }.
+    :cons = {| lis item |
+      !return x :=> y :=> z :=> z x y.
+    }.
+  #end
+  #context string
+    :concat = {| str1 str2 |
+      str1 :cons str2.
+    }.
+    @asString = {| val |
+      | val :typeis 'char' then val :cons nil.
+      | true then !toString val. ;shouldImplement
+    }.
+  #end
+#end
+
+:=::variable -> expression -> constExpr.
+:=>::variable -> expression -> constExpr.
+|::expression -> expression -> constExpr.
+:is::expression -> expression -> boolean.
+:%::number -> number -> number.
+
+@length::list -> number.
+@car::list -> constExpr.
+@cdr::list -> list.
+:cons::list -> expression -> list.
+:to::number -> number -> list.
+to::number -> number -> list.
+:inject::expression -> function -> constExpr.
+inject::expression -> function -> constExpr.
+
+string::string -> string.
+:concat::string -> string -> string.
+@asString::expression -> string.
+
+fizzbuzzInternal::number -> string.
+fizzbuzz::number -> string.
+
+to := num1 :=> num2 :=>
+  | num1 :is num2 then nil
+  | true then (to num1 :+ 1 num2) :cons num1.
+
+inject := lis :=> initial :=> iter :=>
+  | lis @length :is 0 then initial
+  | true then inject (lis @cdr) (iter lis @car initial) iter.
+
+length := lis :=>
+  lis :inject 0 into item :=> last :=>
+    last + 1.
+
+;context
+string x :=>
+  x.
+
+fizzbuzzInternal := num :=>
+  | num :% 15 :is 0 then 'fizzbuzz'
+  | num :% 3  :is 0 then 'fizz'
+  | num :% 5  :is 0 then 'buzz'
+  | true then string num @asString.
+
+fizzbuzz := num :=>
+  0 :to num :inject '' into n => last =>
+    last :concat fizzbuzzInternal n :concat ' '.
+
+fizzbuzz 15. ;=> '0 1 2 fizz 4 buzz fizz 7 8 fizz buzz 11 fizz 13 14 fizzbuzz'
