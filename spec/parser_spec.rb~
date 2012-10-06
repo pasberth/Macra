@@ -1,0 +1,4 @@
+describe "hoge" do
+
+  it { `./parse "(a b c)"`.should == ['a', 'b', 'c'] }
+end
