@@ -8,4 +8,6 @@ import Macra.VM
 main = do
   args <- getArgs
   case args of
-    "--nodes":xs -> putStrLn "Unimplemented"
+    "--nodes":str:xs -> case parse "(fname)" str of
+                             Left x -> print x
+                             Right x -> print x
