@@ -43,11 +43,36 @@ parseNilId = try $ do
            string "nil"
            return $ SymNode NilId
 
+parseNumber :: Parser Node
+parseNumber = parseFloatNum <|> parseIntNumAsFloat <?> "a number"
+
+parseFloatNum = try $ do
+            i <- parseIntNum
+            char '.'
+            ds <- many1 digit
+            return $ NumNode (read $ concat [show i, ".", ds])
+            where digit = oneOf "0123456789"
+
+parseIntNumAsFloat = try $ do
+                   i <- parseIntNum
+                   return $ NumNode (read $ concat [show i, ".", "0"])
+
+parseIntNum :: Parser Integer
+parseIntNum = parseIntNumNonZero <|> parseIntNumZero <?> "a integer"
+parseIntNumZero = try $ do { char '0'; return 0 }
+parseIntNumNonZero = try $ do
+            sign <- char '-' <|> do {return ' '}
+            d <- beginDigit
+            ds <- many digit
+            return $ read $ concat [[sign], [d], ds]
+            where digit = oneOf "0123456789"
+                  beginDigit = oneOf "123456789"
+
 parseProgram :: Parser Node
 parseProgram = parseMaccall
 
 parseExpr :: Parser Node
-parseExpr = parseVMInst <|> parseId <?> "a expression"
+parseExpr = parseVMInst <|> parseId <|> parseNumber <?> "a expression"
 
 a :: (Node -> Node) -> Node -> Node -> Node
 a f n m = MaccallNode n (f m)
