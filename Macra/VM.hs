@@ -4,12 +4,12 @@ data Value = Int Int
            | Char Char
            | List [Value]
 
-type Identifier = String
+data Identifier = Sym String | Nil
 
 data Expr = FrameExpr Expr
           | ConstExpr Value Expr
           | ArgExpr Expr
-          | CloseExpr [Identifier] Expr Expr
+          | CloseExpr Identifier Expr Expr
           | ApplyExpr
           | ReferExpr Identifier Expr
           | ReturnExpr
