@@ -83,7 +83,7 @@ a :: (Node -> Node) -> Node -> Node -> Node
 a f n m = MaccallNode (f n) m
 
 parseMaccall :: Parser Node
-parseMaccall = try $ parseBracketMaccall `chainl1` maccall
+parseMaccall = try parseMaccall' <|> parseSuffixMaccall <?> "one of prefix/infix/suffix"
              where maccall = infixOp <|> prefixOp
                    prefixOp = try $ do
                             requireSpaces
@@ -94,6 +94,24 @@ parseMaccall = try $ parseBracketMaccall `chainl1` maccall
                            id <- parseMark
                            skipSpaces
                            return $ a (MaccallNode id)
+                   parseMaccall' = parseBracketMaccall `chainl1` maccall
+
+                   -- TODO
+                   -- @suffix syntax
+                   parseSuffixMaccall = try $ do
+                            expr <- (try parseMaccall') <|> parseBracketMaccall
+                            skipSpaces
+                            sfx <- parseSuffixMaccall'
+                            return $ sfx expr
+                   parseSuffixMaccall' = do
+                            string "@"
+                            id <- parseMark
+                            skipSpaces
+                            try $ do {
+                              sfx <- parseSuffixMaccall'
+                              ; skipSpaces
+                              ; return $ MaccallNode (sfx id)
+                            } <|> do { return $ MaccallNode id }
 
 parseBracketMaccall :: Parser Node
 parseBracketMaccall = parseVMInst <|> parseId <|> parseNumber

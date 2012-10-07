@@ -54,4 +54,10 @@ describe "Macra Parser" do
       `./bin/macra --nodes "map x => x :* x"`.should == "(Maccall (Sym :map) (Maccall (Sym :+) [Sym then, Sym cond]))"
     end
   end
+
+  describe "Suffix operator" do
+    example do
+      `./bin/macra --nodes "a b @isNull"`.should == "(Maccall (Maccall (Sym :a) (Sym :b)) (Sym @isNull))"
+    end
+  end
 end
