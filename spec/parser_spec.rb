@@ -43,6 +43,10 @@ describe "Macra Parser" do
   describe "Infix operator" do
 
     example do
+      `./bin/macra --nodes "!if a :+ b c"`.should == "(If (Maccall (Maccall (Sym :+)) (Sym :a)) (Sym b) (Sym c))"
+    end
+
+    example do
       `./bin/macra --nodes "then :if cond"`.should == "(Maccall (Sym :if) [Sym then, Sym cond])"
     end
 

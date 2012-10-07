@@ -77,7 +77,7 @@ parseProgram :: Parser Node
 parseProgram = parseMaccall
 
 parseExpr :: Parser Node
-parseExpr = parseVMInst <|> parseId <|> parseNumber <?> "a expression"
+parseExpr = parseInfixMaccall <?> "a expression"
 
 a :: (Node -> Node) -> Node -> Node -> Node
 a f n m = MaccallNode (f n) m
@@ -100,7 +100,7 @@ parseInfixMaccall = try $ parseBracketMaccall `chainl1` infixOp
                                 return $ a (MaccallNode id)
 
 parseBracketMaccall :: Parser Node
-parseBracketMaccall = parseExpr
+parseBracketMaccall = parseVMInst <|> parseId <|> parseNumber
 
 parseVMInst :: Parser Node
 parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMReturn <|> parseVMAssign <|> parseVMFuncall
