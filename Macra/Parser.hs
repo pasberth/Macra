@@ -24,6 +24,11 @@ parse fname program =
             Left x -> Left x
             Right node -> Right node
 
+parseMark :: Parser Node
+parseMark = try $ do
+          id <- symbol
+          return $ SymNode (SymId id)
+          where symbol = many1 (noneOf " \t\n")
 parseId :: Parser Node
 parseId = parseNilId <|> parseSymId
 
@@ -75,7 +80,7 @@ parseExpr :: Parser Node
 parseExpr = parseVMInst <|> parseId <|> parseNumber <?> "a expression"
 
 a :: (Node -> Node) -> Node -> Node -> Node
-a f n m = MaccallNode n (f m)
+a f n m = MaccallNode (f n) m
 
 parseMaccall = parsePrefixMaccall
 
@@ -88,8 +93,9 @@ parsePrefixMaccall = try $ parseInfixMaccall `chainl1` prefix
 parseInfixMaccall :: Parser Node
 parseInfixMaccall = try $ parseBracketMaccall `chainl1` infixOp
                   where infixOp = try $ do
+                                skipSpaces
                                 string ":"
-                                id <- parseSymId
+                                id <- parseMark
                                 skipSpaces
                                 return $ a (MaccallNode id)
 
