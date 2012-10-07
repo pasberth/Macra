@@ -80,7 +80,7 @@ string::string -> string.
 @asString::expression -> string.
 
 fizzbuzzInternal::number -> string.
-fizzbuzz::number -> string.
+  fizzbuzz::number -> string.
 
 to := num1 :=> num2 :=>
   | num1 :is num2 then nil
