@@ -51,7 +51,7 @@ describe "Macra Parser" do
     end
 
     example do
-      `./bin/macra --nodes "map x => x :* x"`.should == "(Funcall (Sym :map) (Maccall (Sym :+) [Sym then, Sym cond]))"
+      `./bin/macra --nodes "map x => x :* x"`.should == "(Maccall (Sym :map) (Maccall (Sym :+) [Sym then, Sym cond]))"
     end
   end
 end
