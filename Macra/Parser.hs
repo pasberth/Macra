@@ -77,27 +77,23 @@ parseProgram :: Parser Node
 parseProgram = parseMaccall
 
 parseExpr :: Parser Node
-parseExpr = parseInfixMaccall <?> "a expression"
+parseExpr = parseBracketMaccall <?> "a expression"
 
 a :: (Node -> Node) -> Node -> Node -> Node
 a f n m = MaccallNode (f n) m
 
-parseMaccall = parsePrefixMaccall
-
-parsePrefixMaccall :: Parser Node
-parsePrefixMaccall = try $ parseInfixMaccall `chainl1` prefix
-                   where prefix = try $ do
-                                requireSpaces
-                                return MaccallNode
-
-parseInfixMaccall :: Parser Node
-parseInfixMaccall = try $ parseBracketMaccall `chainl1` infixOp
-                  where infixOp = try $ do
-                                skipSpaces
-                                string ":"
-                                id <- parseMark
-                                skipSpaces
-                                return $ a (MaccallNode id)
+parseMaccall :: Parser Node
+parseMaccall = try $ parseBracketMaccall `chainl1` maccall
+             where maccall = infixOp <|> prefixOp
+                   prefixOp = try $ do
+                            requireSpaces
+                            return MaccallNode
+                   infixOp = try $ do
+                           skipSpaces
+                           string ":"
+                           id <- parseMark
+                           skipSpaces
+                           return $ a (MaccallNode id)
 
 parseBracketMaccall :: Parser Node
 parseBracketMaccall = parseVMInst <|> parseId <|> parseNumber
