@@ -2,7 +2,8 @@
 module Main where
 
 import System.Environment(getArgs)
-import qualified Macra.Parser as A
+import Macra.Parser
+import Macra.VM
 
 main = do
   args <- getArgs
