@@ -83,7 +83,7 @@ a :: (Node -> Node) -> Node -> Node -> Node
 a f n m = MaccallNode (f n) m
 
 parseMaccall :: Parser Node
-parseMaccall = try parseMaccall' <|> parseSuffixMaccall <?> "one of prefix/infix/suffix"
+parseMaccall = parseMaccall' <?> "one of prefix/infix/suffix"
              where maccall = infixOp <|> prefixOp
                    prefixOp = try $ do
                             requireSpaces
@@ -94,24 +94,23 @@ parseMaccall = try parseMaccall' <|> parseSuffixMaccall <?> "one of prefix/infix
                            id <- parseMark
                            skipSpaces
                            return $ a (MaccallNode id)
-                   parseMaccall' = parseBracketMaccall `chainl1` maccall
-
-                   -- TODO
-                   -- @suffix syntax
-                   parseSuffixMaccall = try $ do
-                            expr <- (try parseMaccall') <|> parseBracketMaccall
+                   suffixOp = try $ do
                             skipSpaces
-                            sfx <- parseSuffixMaccall'
-                            return $ sfx expr
-                   parseSuffixMaccall' = do
                             string "@"
                             id <- parseMark
                             skipSpaces
-                            try $ do {
-                              sfx <- parseSuffixMaccall'
-                              ; skipSpaces
-                              ; return $ MaccallNode (sfx id)
-                            } <|> do { return $ MaccallNode id }
+                            return $ MaccallNode id
+                   parseMaccall' = try $ do
+                                 expr1 <- parseBracketMaccall
+                                 sfxes <- many ((try $ do {
+                                       op <- maccall
+                                       ; expr2 <- parseBracketMaccall
+                                       ; return $ (\node -> op node expr2)
+                                       }) <|> (try $ do {
+                                         op <- suffixOp
+                                         ; return op
+                                       }))
+                                 return $ foldl (\expr sfx -> sfx expr) expr1 sfxes
 
 parseBracketMaccall :: Parser Node
 parseBracketMaccall = parseVMInst <|> parseId <|> parseNumber

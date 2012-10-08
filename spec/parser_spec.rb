@@ -57,7 +57,7 @@ describe "Macra Parser" do
 
   describe "Suffix operator" do
     example do
-      `./bin/macra --nodes "a b @isNull"`.should == "(Maccall (Maccall (Sym :a) (Sym :b)) (Sym @isNull))"
+      `./bin/macra --nodes "a b @isNull"`.should == "(Maccall (Maccall (Sym @isNull) (Sym :a)) (Sym :b))"
     end
   end
 end
