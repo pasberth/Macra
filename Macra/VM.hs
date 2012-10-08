@@ -1,19 +1,21 @@
-module Macra.VM where
+module Macra.VM (Value(..), Identifier(..), Inst(..)) where
 
-data Value = Int Int
+data Value = Double Double
            | Char Char
            | List [Value]
+           deriving (Show, Eq)
 
-data Identifier = Sym String | Nil
+data Identifier = Sym String | Nil deriving (Show, Eq)
 
-data Expr = FrameExpr Expr
-          | ConstExpr Value Expr
-          | ArgExpr Expr
-          | CloseExpr Identifier Expr Expr
-          | ApplyExpr
-          | ReferExpr Identifier Expr
-          | ReturnExpr
-          | TestExpr Expr Expr Expr
-          | DefineExpr Identifier Expr
-          | HaltExpr
-          | PrintExpr Expr
+data Inst = FrameInst  Inst       Inst      --hasnext
+          | ConstExpr  Value      Inst      --hasnext
+          | ArgInst    Inst                 --hasnext
+          | CloseInst  Identifier Inst Inst --hasnext
+          | ApplyInst
+          | ReferInst  Identifier Inst      --hasnext
+          | ReturnInst
+          | TestInst   Inst       Inst Inst --hasnext
+          | DefineInst Identifier Inst      --hasnext
+          | HaltInst
+          | PrintInst  Inst                 --hasnext
+          deriving (Show, Eq)

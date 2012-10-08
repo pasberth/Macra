@@ -1,5 +1,5 @@
 
-module Macra.Parser where
+module Macra.Parser (Identifier(..), Node(..), parse) where
 
 import qualified Text.ParserCombinators.Parsec as P
 import Text.ParserCombinators.Parsec hiding (parse)
@@ -12,7 +12,7 @@ data Node = SymNode Identifier
           | ListNode [Node]
           | IfNode Node Node
           | LambdaNode Node Node
-          | AssignNode Node Node
+          | DefineNode Node Node
           | ReturnNode
           | FuncallNode Node Node
           | MaccallNode Node Node
@@ -116,7 +116,7 @@ parseBracketMaccall :: Parser Node
 parseBracketMaccall = parseVMInst <|> parseId <|> parseNumber
 
 parseVMInst :: Parser Node
-parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMReturn <|> parseVMAssign <|> parseVMFuncall
+parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMReturn <|> parseVMDefine <|> parseVMFuncall
 
 parseVMIf :: Parser Node
 parseVMIf = try $ do
@@ -141,14 +141,14 @@ parseVMReturn = try $ do
               string "!return"
               return ReturnNode
 
-parseVMAssign :: Parser Node
-parseVMAssign = try $ do
-              string "!assign"
+parseVMDefine :: Parser Node
+parseVMDefine = try $ do
+              string "!define"
               requireSpaces
               id <- parseId
               skipSpaces
               expr <- parseExpr
-              return $ AssignNode id expr
+              return $ DefineNode id expr
 
 parseVMFuncall :: Parser Node
 parseVMFuncall = try $ do
