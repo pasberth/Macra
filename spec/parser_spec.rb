@@ -1,7 +1,8 @@
 describe "Macra Parser" do
 
   describe "Bracket" do
-    `./bin/macra --nodes '(a b c)'`.should == <<-A
+    example do
+      `./bin/macra --nodes '(a; b; c)'`.should == <<-A
 #maccall
   #maccall
     #maccall
@@ -10,6 +11,7 @@ describe "Macra Parser" do
     'b
   'c
 A
+    end
   end
 
   describe "Assign" do

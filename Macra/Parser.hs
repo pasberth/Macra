@@ -133,10 +133,15 @@ parseBracketMaccall :: Parser Node
 parseBracketMaccall = parseBracket <|> parseVMInst <|> parseId <|> parseNumber
                     where bracket beg end = try $ do {
                                         string beg
-                                        ; args <- (many $ do { skipSpaces; parseExpr >>= return })
+                                        ; arg1 <- try $ do { skipSpaces; parseMaccall >>= return }
+                                        ; args <- (many $ do {
+                                                        skipSpaces
+                                                        ; string ";"
+                                                        ; skipSpaces
+                                                        ;  parseMaccall >>= return })
                                         ; skipSpaces
                                         ; string end
-                                        ; return $ foldl (\a b -> MaccallNode a b) (SymNode $ SymId beg) args
+                                        ; return $ foldl (\a b -> MaccallNode a b) (SymNode $ SymId beg) (arg1:args)
                                     }
                           parseBracket = bracket "[" "]" <|>
                                        bracket "(" ")"
