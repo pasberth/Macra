@@ -3,61 +3,124 @@ describe "Macra Parser" do
   describe "Assign" do
 
     example do
-      `./bin/macra --nodes "!assign x y"`.should == "(Assign (Sym x) (Sym y))"
+      `./bin/macra --nodes "!define x y"`.should == <<-A
+!define
+  'x
+  'y
+A
     end
 
     example do
-      `./bin/macra --nodes "!assign x 1"`.should == "(Assign (Sym x) (Int 1))"
+      `./bin/macra --nodes "!define x 1"`.should == <<-A
+!define
+  'x
+  1.0
+A
     end
   end
 
   describe "Lambda expression" do
 
     example do
-      `./bin/macra --nodes "!lambda x y"`.should == "(Lambda (Sym x) (Sym y))"
+      `./bin/macra --nodes "!lambda x y"`.should == <<-A
+!lambda
+  'x
+  'y
+A
     end
   end
 
   describe "If cond then" do
 
     example do
-      `./bin/macra --nodes "!if cond then"`.should == "(If (Sym cond) (Sym then))"
+      `./bin/macra --nodes "!if cond then"`.should == <<-A
+!if
+  'cond
+  'then
+A
     end
   end
 
   describe "Funcall" do
 
     example do
-      `./bin/macra --nodes "!funcall x y"`.should == "(Funcall (Sym x) (Sym y))"
+      `./bin/macra --nodes "!funcall x y"`.should == <<-A
+!funcall
+  'x
+  'y
+A
     end
 
     example do
-      `./bin/macra --nodes "!funcall !funcall x y z"`.should == "(Funcall (Funcall (Sym x) (Sym y)) (Funcall (Sym z)))"
+      `./bin/macra --nodes "!funcall !funcall x y z"`.should == <<-A
+!funcall
+  !funcall
+    'x
+    'y
+  'z
+A
     end
 
     example do
-      `./bin/macra --nodes "!funcall x !funcall y z"`.should == "(Funcall (Sym x) (Funcall (Sym y) (Sym z)))"
+      `./bin/macra --nodes "!funcall x !funcall y z"`.should == <<-A
+!funcall
+  'x
+  !funcall
+    'y
+    'z
+A
     end
   end
 
   describe "Infix operator" do
 
     example do
-      `./bin/macra --nodes "then :if cond"`.should == "(Maccall (Sym :if) [Sym then, Sym cond])"
+      `./bin/macra --nodes "then :if cond"`.should == <<-A
+#maccall
+  #maccall
+    'if
+    'then
+  'cond
+A
     end
 
     example do
-      `./bin/macra --nodes "a :+ b"`.should == "(Maccall (Sym :+) [Sym a, Sym b])"
+      `./bin/macra --nodes "a :+ b"`.should == <<-A
+#maccall
+  #maccall
+    '+
+    'a
+  'b
+A
+
     end
 
     example do
-      `./bin/macra --nodes "map x => x :* x"`.should == "(Maccall (Sym :map) (Maccall (Sym :+) [Sym then, Sym cond]))"
+      `./bin/macra --nodes "map x => x :* x"`.should == <<-A
+#maccall
+  'map
+  #maccall
+    #maccall
+      '=>
+      'x
+    #maccall
+      #maccall
+        '*
+        'x
+      'x
+A
     end
   end
 
   describe "Suffix operator" do
     example do
-      `./bin/macra --nodes "a b @isNull"`.should == "(Maccall (Maccall (Sym @isNull) (Sym :a)) (Sym :b))"
+      `./bin/macra --nodes "a b @isNull"`.should == <<-A
+#maccall
+  'isNull
+  #maccall
+    'a
+    'b
+A
     end
   end
 end

@@ -141,7 +141,7 @@ parseEqualArrow = try (do
                 skipSpaces
                 string "=>"
                 skipSpaces
-                expr2 <- parseLambdaSyntax
+                expr2 <- parseMaccall
                 return $ MaccallNode (MaccallNode (SymNode $ SymId "=>") expr1) expr2
                 ) <?> "`=>'"
 
@@ -161,7 +161,7 @@ parseComma = try (do
            skipSpaces
            string ","
            skipSpaces
-           expr2 <- parseLambdaSyntax
+           expr2 <- parseMaccall
            return $ MaccallNode (MaccallNode (SymNode $ SymId ",") expr1) expr2
            ) <?> "`,'"
 
