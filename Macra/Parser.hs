@@ -91,7 +91,7 @@ parseIntNumNonZero = try $ do
                   beginDigit = oneOf "123456789"
 
 parseProgram :: Parser Node
-parseProgram = parseMaccall
+parseProgram = do { expr <- parseMaccall; eof; return expr }
 
 parseExpr :: Parser Node
 parseExpr = parseLambdaSyntax <?> "a expression"
