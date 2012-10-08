@@ -16,7 +16,24 @@ data Node = SymNode Identifier
           | ReturnNode
           | FuncallNode Node Node
           | MaccallNode Node Node
-          deriving (Show, Eq)
+          deriving (Eq)
+
+instance Show Node where
+  show (SymNode NilId) = "#<nil>"
+  show (SymNode (SymId sym)) = concat ["'", sym]
+  show (CharNode c) = show c
+  show (NumNode n) = show n
+  show (ListNode l) = show l
+  show (IfNode a b) = concat ["!if", (indent2 $ show a), (indent2 $ show b)]
+  show (LambdaNode a b) = concat ["!lambda", (indent2 $ show a), (indent2 $ show b)]
+  show (DefineNode a b) = concat ["!define", (indent2 $ show a), (indent2 $ show b)]
+  show (ReturnNode) = "!return"
+  show (FuncallNode a b) = concat ["!funcall", (indent2 $ show a), (indent2 $ show b)]
+  show (MaccallNode a b) = concat ["#maccall", (indent2 $ show a), (indent2 $ show b)]
+
+indent :: String -> String -> String
+indent idt node = foldl (\str x -> concat [str, "\n", idt,  x]) "" (lines node)
+indent2 node = indent "  " node
 
 parse :: FilePath -> String -> Either ParseError Node
 parse fname program =
