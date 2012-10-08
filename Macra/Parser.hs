@@ -77,7 +77,7 @@ parseProgram :: Parser Node
 parseProgram = parseMaccall
 
 parseExpr :: Parser Node
-parseExpr = parseBracketMaccall <?> "a expression"
+parseExpr = parseLambdaSyntax <?> "a expression"
 
 a :: (Node -> Node) -> Node -> Node -> Node
 a f n m = MaccallNode (f n) m
@@ -101,10 +101,10 @@ parseMaccall = parseMaccall' <?> "one of prefix/infix/suffix"
                             skipSpaces
                             return $ MaccallNode id
                    parseMaccall' = try $ do
-                                 expr1 <- parseBracketMaccall
+                                 expr1 <- parseLambdaSyntax
                                  sfxes <- many ((try $ do {
                                        op <- maccall
-                                       ; expr2 <- parseBracketMaccall
+                                       ; expr2 <- parseLambdaSyntax
                                        ; return $ (\node -> op node expr2)
                                        }) <|> (try $ do {
                                          op <- suffixOp
@@ -114,6 +114,39 @@ parseMaccall = parseMaccall' <?> "one of prefix/infix/suffix"
 
 parseBracketMaccall :: Parser Node
 parseBracketMaccall = parseVMInst <|> parseId <|> parseNumber
+
+parseLambdaSyntax :: Parser Node
+parseLambdaSyntax = parseEqualArrow <|> parseComma <|> parseBracketMaccall
+
+parseEqualArrow :: Parser Node
+parseEqualArrow = try (do
+                expr1 <- parseBracketMaccall
+                skipSpaces
+                string "=>"
+                skipSpaces
+                expr2 <- parseLambdaSyntax
+                return $ MaccallNode (MaccallNode (SymNode $ SymId "=>") expr1) expr2
+                ) <?> "`=>'"
+
+-- case 1
+-- x,y,z => a
+-- (x , (y , (z => a))
+-- x,y => (z => a)
+-- x => (y => (z => a))
+
+-- case 2
+-- x => y, z => a
+-- x => (y , (z => a))
+-- x => (y => (z => a))
+parseComma :: Parser Node
+parseComma = try (do
+           expr1 <- parseBracketMaccall
+           skipSpaces
+           string ","
+           skipSpaces
+           expr2 <- parseLambdaSyntax
+           return $ MaccallNode (MaccallNode (SymNode $ SymId ",") expr1) expr2
+           ) <?> "`,'"
 
 parseVMInst :: Parser Node
 parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMReturn <|> parseVMDefine <|> parseVMFuncall
