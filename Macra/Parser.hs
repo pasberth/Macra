@@ -13,7 +13,7 @@ data Node = SymNode Identifier
           | IfNode Node Node
           | LambdaNode Node Node
           | DefineNode Node Node
-          | ReturnNode
+          | ReturnNode Node
           | FuncallNode Node Node
           | MaccallNode Node Node
           deriving (Eq)
@@ -27,7 +27,7 @@ instance Show Node where
   show (IfNode a b) = concat ["!if", (indent2 $ show a), (indent2 $ show b)]
   show (LambdaNode a b) = concat ["!lambda", (indent2 $ show a), (indent2 $ show b)]
   show (DefineNode a b) = concat ["!define", (indent2 $ show a), (indent2 $ show b)]
-  show (ReturnNode) = "!return"
+  show (ReturnNode a) = concat ["!return", (indent2 $ show a)]
   show (FuncallNode a b) = concat ["!funcall", (indent2 $ show a), (indent2 $ show b)]
   show (MaccallNode a b) = concat ["#maccall", (indent2 $ show a), (indent2 $ show b)]
 
@@ -189,7 +189,9 @@ parseVMLambda = try $ do
 parseVMReturn :: Parser Node
 parseVMReturn = try $ do
               string "!return"
-              return ReturnNode
+              requireSpaces
+              expr <- parseExpr
+              return $ ReturnNode expr
 
 parseVMDefine :: Parser Node
 parseVMDefine = try $ do
