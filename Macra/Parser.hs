@@ -130,7 +130,16 @@ parseMaccall = parseMaccall' <?> "one of prefix/infix/suffix"
                                  return $ foldl (\expr sfx -> sfx expr) expr1 sfxes
 
 parseBracketMaccall :: Parser Node
-parseBracketMaccall = parseVMInst <|> parseId <|> parseNumber
+parseBracketMaccall = parseBracket <|> parseVMInst <|> parseId <|> parseNumber
+                    where bracket beg end = try $ do {
+                                        string beg
+                                        ; args <- (many $ do { skipSpaces; parseExpr >>= return })
+                                        ; skipSpaces
+                                        ; string end
+                                        ; return $ MaccallNode (SymNode $ SymId beg) (ListNode args)
+                                    }
+                          parseBracket = bracket "[" "]" <|>
+                                       bracket "(" ")"
 
 parseLambdaSyntax :: Parser Node
 parseLambdaSyntax = parseEqualArrow <|> parseComma <|> parseBracketMaccall
