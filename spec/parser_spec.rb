@@ -3,8 +3,12 @@ describe "Macra Parser" do
   describe "Bracket" do
     `./bin/macra --nodes '(a b c)'`.should == <<-A
 #maccall
-  '(
-  ['a,'b,'c]
+  #maccall
+    #maccall
+      '(
+      'a
+    'b
+  'c
 A
   end
 

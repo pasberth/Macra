@@ -136,7 +136,7 @@ parseBracketMaccall = parseBracket <|> parseVMInst <|> parseId <|> parseNumber
                                         ; args <- (many $ do { skipSpaces; parseExpr >>= return })
                                         ; skipSpaces
                                         ; string end
-                                        ; return $ MaccallNode (SymNode $ SymId beg) (ListNode args)
+                                        ; return $ foldl (\a b -> MaccallNode a b) (SymNode $ SymId beg) args
                                     }
                           parseBracket = bracket "[" "]" <|>
                                        bracket "(" ")"
