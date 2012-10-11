@@ -11,8 +11,8 @@ data Node = SymNode Identifier
           | NumNode  Double
           | ListNode [Node]
           | IfNode Node Node
-          | LambdaNode Node Node
-          | DefineNode Node Node
+          | LambdaNode Identifier Node
+          | DefineNode Identifier Node
           | ReturnNode Node
           | FuncallNode Node Node
           | MaccallNode Node Node
@@ -46,24 +46,21 @@ parseMark = try $ do
           id <- symbol
           return $ SymNode (SymId id)
           where symbol = many1 (noneOf " \t\n")
+
+parseIdAsIdentifier :: Parser Identifier
+parseIdAsIdentifier = try parseNilIdAsIdentifier <|> try parseSymIdAsIdentifier
+                    where parseNilIdAsIdentifier = do { string "nil"; return NilId }
+                          parseSymIdAsIdentifier = do
+                                                 a <- beginLetter
+                                                 b <- many containLetter
+                                                 return $ SymId (a:b)
+                                                 where beginLetter = letter
+                                                       containLetter = letter <|> oneOf "0123456789" <|> oneOf "-"
+
 parseId :: Parser Node
-parseId = parseNilId <|> parseSymId
-
-parseSymId :: Parser Node
-parseSymId = try $ do
-           id <- symbol
-           return $ SymNode (SymId id)
-           where symbol = do
-                        a <- beginLetter
-                        b <- many containLetter
-                        return (a:b)
-                 beginLetter = letter
-                 containLetter = letter <|> oneOf "0123456789" <|> oneOf "-"
-
-parseNilId :: Parser Node
-parseNilId = try $ do
-           string "nil"
-           return $ SymNode NilId
+parseId = try $ do
+        id <- parseIdAsIdentifier
+        return $ SymNode id
 
 parseNumber :: Parser Node
 parseNumber = parseFloatNum <|> parseIntNumAsFloat <?> "a number"
@@ -195,7 +192,7 @@ parseVMLambda :: Parser Node
 parseVMLambda = try $ do
               string "!lambda"
               requireSpaces
-              id <- parseId
+              id <- parseIdAsIdentifier
               skipSpaces
               expr <- parseExpr
               return $ LambdaNode id expr
@@ -211,7 +208,7 @@ parseVMDefine :: Parser Node
 parseVMDefine = try $ do
               string "!define"
               requireSpaces
-              id <- parseId
+              id <- parseIdAsIdentifier
               skipSpaces
               expr <- parseExpr
               return $ DefineNode id expr

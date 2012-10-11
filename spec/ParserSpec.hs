@@ -33,14 +33,14 @@ spec = do
 
       it "keyword is '!define'" $ do
         cmpNode "!define x y" (DefineNode
-                                (SymNode (SymId "x"))
+                                (SymId "x")
                                 (SymNode (SymId "y")))
 
     describe "Lambda Syntax" $ do
 
       it "keyword is '!lambda'" $ do
          cmpNode "!lambda x y" (LambdaNode
-                                 (SymNode (SymId "x"))
+                                 (SymId "x")
                                  (SymNode (SymId "y")))
 
     describe "If Syntax" $ do

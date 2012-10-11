@@ -23,9 +23,9 @@ compile (NumNode num) next =
   ConstExpr (List [Char node]) next-}
 compile (IfNode condExp thenExp) next =
   TestInst (compile condExp next) (compile thenExp next) next
-compile (LambdaNode (SymNode (P.SymId param)) expr) next = 
+compile (LambdaNode (P.SymId param) expr) next = 
   CloseInst (VM.Sym param) (compile expr ReturnInst) next
-compile (DefineNode (SymNode (P.SymId var)) val) next =
+compile (DefineNode (P.SymId var) val) next =
   DefineInst (VM.Sym var) next
 compile (FuncallNode lambda argument) next = 
   FrameInst next (compile argument (ArgInst (compile lambda ApplyInst)))
@@ -33,8 +33,3 @@ compile (FuncallNode lambda argument) next =
   FrameInst (FuncallNode (ArgInst (compile argument (macroExpand macro))))
 
 macroExpand :: Node -> LambdaNode-}
-
-aLambdaNode = (FuncallNode (LambdaNode (SymNode (P.SymId "foo")) (SymNode (P.SymId "foo"))) (NumNode 3))
-aFuncallNode = (FuncallNode (SymNode (P.SymId "foo")) (CharNode 'a'))
-
--- main = print (compile aLambdaNode HaltInst)
