@@ -41,11 +41,16 @@ parse fname program =
             Left x -> Left x
             Right node -> Right node
 
-parseMark :: Parser Node
-parseMark = try $ do
-          id <- symbol
-          return $ SymNode (SymId id)
-          where symbol = many1 (noneOf " \t\n")
+parseMarkAsIdentifer :: Parser Identifier
+parseMarkAsIdentifer = parseMarkAsIdentifer' <|> parseIdAsIdentifier
+          where parseMarkAsIdentifer' = try $ do
+                a <- beginLetter
+                b <- many containLetter
+                return $ SymId (a:b)
+                -- ruby -e 'puts [*33..47, *58..64, *91..96, *123..126].map(&:chr).join'
+                where beginLetter = oneOf "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+                      containLetter = beginLetter
+
 
 parseIdAsIdentifier :: Parser Identifier
 parseIdAsIdentifier = try parseNilIdAsIdentifier <|> try parseSymIdAsIdentifier
@@ -56,6 +61,11 @@ parseIdAsIdentifier = try parseNilIdAsIdentifier <|> try parseSymIdAsIdentifier
                                                  return $ SymId (a:b)
                                                  where beginLetter = letter
                                                        containLetter = letter <|> oneOf "0123456789" <|> oneOf "-"
+
+parseMark :: Parser Node
+parseMark = try $ do
+          mark <- parseMarkAsIdentifer
+          return $ SymNode mark
 
 parseId :: Parser Node
 parseId = try $ do
