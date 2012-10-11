@@ -5,24 +5,31 @@ module Macra.Parser (Identifier(..),
                      CxtDefMNode(..),
                      MacParams(..),
                      Node(..),
+                     SigList,
+                     CxtId,
                      parse) where
 
 import qualified Text.ParserCombinators.Parsec as P
 import Text.ParserCombinators.Parsec hiding (parse)
 
-data Identifier = SymId String | NilId deriving (Show, Eq)
+data Identifier = SymId String | NilId deriving (Show, Eq, Ord)
 
 data ToplevelNode = MacCxtTLNode MacCxtNode
                   | EvalCxtTLNode Node
+                  | BlockTLNode ToplevelNode ToplevelNode
                   deriving (Show, Eq)
 
-data MacCxtNode = CxtDefMNode Identifier CxtDefMNode
+data MacCxtNode = CxtDefMNode CxtId CxtDefMNode
+                | SigDefMNode Identifier SigList
                 | BlockMNode MacCxtNode MacCxtNode
                 deriving (Show, Eq)
 
 data CxtDefMNode = MacDefMCNode Identifier MacParams Node
                  | BlockMCNode CxtDefMNode CxtDefMNode
                  deriving (Show, Eq)
+
+type SigList = [CxtId]
+type CxtId = String
 
 data MacParams = MacParams MacParams MacParams
                | MacParam Identifier

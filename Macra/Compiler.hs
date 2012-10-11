@@ -1,4 +1,9 @@
-module Macra.Compiler (compile, initialDefiner, macroDefine) where
+module Macra.Compiler (compile,
+                       initialMacroDefiner,
+                       initialMacroMap,
+                       initialContext,
+                       macroDefine,
+                       macroExpand) where
 
 import qualified Data.Map as M
 import qualified Control.Monad.State as S
@@ -7,16 +12,21 @@ import Macra.VM hiding (Identifier)
 import qualified Macra.Parser as P
 import qualified Macra.VM as VM
 
-data Definer = Definer {
-     definerMacroMap :: MacroMap
-   , definerContext :: Context
+data MacroDefiner = MacroDefiner {
+     macroDefinerMacroMap :: MacroMap
+   , macroDefinerContext :: P.CxtId
      }
 
-type MacroMap = M.Map (Context, Identifier) Macro
-type Context = String
-type Identifier = String
+type MacroMap = M.Map (P.CxtId, P.Identifier) Macro
 type Macro = (MacParams, Node)
-type DefinerCmd = S.State Definer MacroMap
+type MacroDefinerCmd = S.State MacroDefiner MacroMap
+
+data SignatureDefiner = SignatureDefiner {
+     signatureDefinerSignatureMap :: SignatureMap
+     }
+
+type SignatureMap = M.Map P.Identifier Signature
+type Signature = SigList
 
 {-lambdanode example
   input   : !funcall !lambda foo !add foo 2 3
@@ -24,31 +34,40 @@ type DefinerCmd = S.State Definer MacroMap
   compiled: (FrameInst HaltInst (ConstExpr 1 (ArgInst (CloseInst foo (AddInst (ReferInst 'foo' ReturnInst) (ConstExpr 2 ReturnInst) ReturnInst) ApplyInst))))
 -}
 
-initialDefiner :: Definer
-initialDefiner = Definer initialMacroMap initialContext
+initialMacroDefiner :: MacroDefiner
+initialMacroDefiner = MacroDefiner initialMacroMap initialContext
 
-initialContext :: Context
+initialContext :: P.CxtId
 initialContext = "toplevel"
 
 initialMacroMap :: MacroMap
 initialMacroMap = M.fromList []
 
-macroDefine :: MacCxtNode -> DefinerCmd
-macroDefine (CxtDefMNode (P.SymId cxtId) cxtDef) = do
+macroDefine :: MacCxtNode -> MacroDefinerCmd
+macroDefine (CxtDefMNode cxtId cxtDef) = do
   definer <- S.get
-  S.put definer { definerContext = cxtId }
+  S.put definer { macroDefinerContext = cxtId }
   macroContextDefine cxtDef
 
-macroContextDefine :: CxtDefMNode -> DefinerCmd
-macroContextDefine (MacDefMCNode (P.SymId macId) params node) = do
+macroContextDefine :: CxtDefMNode -> MacroDefinerCmd
+macroContextDefine (MacDefMCNode macId params node) = do
   definer <- S.get
   S.put definer {
-        definerMacroMap = M.insert ((definerContext definer), macId)
+        macroDefinerMacroMap = M.insert ((macroDefinerContext definer), macId)
                                    (params, node)
-                                   (definerMacroMap definer)
+                                   (macroDefinerMacroMap definer)
         }
   newDefiner <- S.get
-  return (definerMacroMap newDefiner)
+  return (macroDefinerMacroMap newDefiner)
+
+macroExpand :: MacroMap -> P.CxtId -> Node -> Node
+macroExpand mm cxt (MaccallNode a b) =
+  case a of
+  SymNode sym -> case M.lookup (cxt, sym) mm of
+                         -- Just m -> m
+                         Nothing -> (FuncallNode (SymNode sym) (macroExpand mm cxt b))
+  _ -> (FuncallNode (macroExpand mm cxt a) (macroExpand mm cxt b))
+macroExpand mm cxt node = node
 
 compile :: Node -> Inst -> Inst
 
@@ -68,7 +87,3 @@ compile (DefineNode (P.SymId var) val) next =
   DefineInst (VM.Sym var) next
 compile (FuncallNode lambda argument) next = 
   FrameInst next (compile argument (ArgInst (compile lambda ApplyInst)))
-{-compile (MaccallNode macro argument) next = 
-  FrameInst (FuncallNode (ArgInst (compile argument (macroExpand macro))))
-
-macroExpand :: Node -> LambdaNode-}
