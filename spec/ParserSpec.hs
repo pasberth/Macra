@@ -37,6 +37,39 @@ spec = do
                                            (SymId "m")
                                            (MacParam (SymId "x"))
                                            (SymNode (SymId "x")))))
+
+    describe "Arrow Syntax and Comma Syntax" $ do
+
+      it "優先順位は同じ case 1" $ do
+        cmpNode "x,y,z => a" (MaccallNode
+                               (MaccallNode
+                                 (SymNode (SymId ","))
+                                 (SymNode (SymId "x")))
+                               (MaccallNode
+                                 (MaccallNode
+                                   (SymNode (SymId ","))
+                                   (SymNode (SymId "y")))
+                                 (MaccallNode
+                                   (MaccallNode
+                                     (SymNode (SymId "=>"))
+                                     (SymNode (SymId "z")))
+                                   (SymNode (SymId "a")))))
+
+      it "優先順位は同じ case 2" $ do
+        cmpNode "x => y, z => a" (MaccallNode
+                               (MaccallNode
+                                 (SymNode (SymId "=>"))
+                                 (SymNode (SymId "x")))
+                               (MaccallNode
+                                 (MaccallNode
+                                   (SymNode (SymId ","))
+                                   (SymNode (SymId "y")))
+                                 (MaccallNode
+                                   (MaccallNode
+                                     (SymNode (SymId "=>"))
+                                     (SymNode (SymId "z")))
+                                   (SymNode (SymId "a")))))
+
     describe "Bracket Syntax" $ do
 
       it "be separated by ';'" $ do

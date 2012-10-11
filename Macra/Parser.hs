@@ -188,16 +188,6 @@ parseEqualArrow = try (do
                 return $ MaccallNode (MaccallNode (SymNode $ SymId "=>") expr1) expr2
                 ) <?> "`=>'"
 
--- case 1
--- x,y,z => a
--- (x , (y , (z => a))
--- x,y => (z => a)
--- x => (y => (z => a))
-
--- case 2
--- x => y, z => a
--- x => (y , (z => a))
--- x => (y => (z => a))
 parseComma :: Parser Node
 parseComma = try (do
            expr1 <- parseBracketMaccall
