@@ -144,7 +144,6 @@ parseMaccall = parseMaccall' <?> "one of prefix/infix/suffix"
                             skipSpaces
                             string "@"
                             id <- parseMark
-                            skipSpaces
                             return $ MaccallNode id
                    parseMaccall' = try $ do
                                  expr1 <- parseLambdaSyntax
