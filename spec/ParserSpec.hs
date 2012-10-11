@@ -8,16 +8,35 @@ import Macra.Parser
 main :: IO ()
 main = hspec spec
 
+cmpTLNode :: String -> ToplevelNode -> Expectation
+cmpTLNode program node = do
+  case parse "(ParserSpec.hs)" program of
+    Left x -> fail (show x)
+    Right x -> x `shouldBe` node
+
 cmpNode :: String -> Node -> Expectation
 cmpNode program node = do
   case parse "(ParserSpec.hs)" program of
     Left x -> fail (show x)
-    Right x -> x `shouldBe` node
+    Right (EvalCxtTLNode x) -> x `shouldBe` node
 
 spec :: Spec
 spec = do
   describe "Macra.Parser" $ do
 
+    describe "#macro context" $ do
+      it "" $ do
+        cmpTLNode (concat [ "#macro\n",
+                            "#context function\n",
+                            "m x = x\n",
+                            "#end\n",
+                            "#end"]) (MacCxtTLNode
+                                       (CxtDefMNode
+                                         (SymId "function")
+                                         (MacDefMCNode
+                                           (SymId "m")
+                                           (MacParam (SymId "x"))
+                                           (SymNode (SymId "x")))))
     describe "Bracket Syntax" $ do
 
       it "be separated by ';'" $ do

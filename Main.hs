@@ -14,4 +14,4 @@ main = do
                              Right x -> print x
     "--insts":str:xs -> case parse "(fname)" str of
                              Left x -> print x
-                             Right x -> print (compile x HaltInst)
+                             Right (EvalCxtTLNode x) -> print (compile x HaltInst)

@@ -1,10 +1,32 @@
 
-module Macra.Parser (Identifier(..), Node(..), parse) where
+module Macra.Parser (Identifier(..),
+                     ToplevelNode(..),
+                     MacCxtNode(..),
+                     CxtDefMNode(..),
+                     MacParams(..),
+                     Node(..),
+                     parse) where
 
 import qualified Text.ParserCombinators.Parsec as P
 import Text.ParserCombinators.Parsec hiding (parse)
 
 data Identifier = SymId String | NilId deriving (Show, Eq)
+
+data ToplevelNode = MacCxtTLNode MacCxtNode
+                  | EvalCxtTLNode Node
+                  deriving (Show, Eq)
+
+data MacCxtNode = CxtDefMNode Identifier CxtDefMNode
+                | BlockMNode MacCxtNode MacCxtNode
+                deriving (Show, Eq)
+
+data CxtDefMNode = MacDefMCNode Identifier MacParams Node
+                 | BlockMCNode CxtDefMNode CxtDefMNode
+                 deriving (Show, Eq)
+
+data MacParams = MacParams MacParams MacParams
+               | MacParam Identifier
+               deriving (Show, Eq)
 
 data Node = SymNode Identifier
           | CharNode Char
@@ -35,7 +57,7 @@ indent :: String -> String -> String
 indent idt node = foldl (\str x -> concat [str, "\n", idt,  x]) "" (lines node)
 indent2 node = indent "  " node
 
-parse :: FilePath -> String -> Either ParseError Node
+parse :: FilePath -> String -> Either ParseError ToplevelNode
 parse fname program =
       case P.parse parseProgram fname program of
             Left x -> Left x
@@ -97,8 +119,8 @@ parseIntNumNonZero = try $ do
             where digit = oneOf "0123456789"
                   beginDigit = oneOf "123456789"
 
-parseProgram :: Parser Node
-parseProgram = do { expr <- parseMaccall; eof; return expr }
+parseProgram :: Parser ToplevelNode
+parseProgram = do { expr <- parseMaccall; eof; return $ EvalCxtTLNode expr }
 
 parseExpr :: Parser Node
 parseExpr = parseLambdaSyntax <?> "a expression"
