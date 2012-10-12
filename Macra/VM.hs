@@ -6,7 +6,7 @@ import qualified Control.Monad.State as S
 data Value = Double Double
            | Char Char
            | List [Value]
-           | Closure Identifier Inst
+           | Closure Identifier Inst Env
            deriving (Show, Eq, Ord)
 
 data Identifier = Sym String | Nil deriving (Show, Eq, Ord)
@@ -99,6 +99,24 @@ vm' = do
           , vmInst = nxt
             }
       vm'
+    VM a ApplyInst e (val:r) s -> do
+      case a of
+        (Closure (Sym var) body ce) -> do
+          S.put vmState {
+                vmEnv = M.insert (Sym var) val ce
+              , vmInst = body
+                }
+          vm'
+        (Closure Nil body ce) -> do
+          S.put vmState {
+                vmEnv = ce
+              , vmInst = body
+                }
+          vm'
+        _ -> do
+          S.liftIO $ do
+            putStr $ concat ["invalid application: ", show a]
+          return ()
     VM a ReturnInst _ _ ((ret, e, r):s) -> do
       S.put vmState {
             vmInst = ret
@@ -113,7 +131,11 @@ vm' = do
       return ()
     VM a (CloseInst var body nxt) e r s -> do
       S.put vmState {
-            vmAcc = Closure var body
+            vmAcc = Closure var body e
           , vmInst = nxt
             }
       vm'
+    _ -> do
+     S.liftIO $ do
+       print "** VM BUG **: "
+       print vmState
