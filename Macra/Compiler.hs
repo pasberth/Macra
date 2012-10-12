@@ -1,9 +1,8 @@
 module Macra.Compiler (compile,
-                       initialMacroDefiner,
-                       initialMacroMap,
-                       initialContext,
                        macroDefine,
-                       macroExpand) where
+                       macroExpand,
+                       emptyMacroMap,
+                       toplevelContext) where
 
 import qualified Data.Map as M
 import qualified Control.Monad.State as S
@@ -34,17 +33,17 @@ type Signature = SigList
   compiled: (FrameInst HaltInst (ConstExpr 1 (ArgInst (CloseInst foo (AddInst (ReferInst 'foo' ReturnInst) (ConstExpr 2 ReturnInst) ReturnInst) ApplyInst))))
 -}
 
-initialMacroDefiner :: MacroDefiner
-initialMacroDefiner = MacroDefiner initialMacroMap initialContext
+toplevelContext :: P.CxtId
+toplevelContext = "toplevel"
 
-initialContext :: P.CxtId
-initialContext = "toplevel"
+emptyMacroMap :: MacroMap
+emptyMacroMap = M.fromList []
 
-initialMacroMap :: MacroMap
-initialMacroMap = M.fromList []
+macroDefine :: MacroMap -> P.CxtId -> MacCxtNode -> MacroMap
+macroDefine mm cxt node = S.evalState (macroDefine' node) (MacroDefiner mm cxt)
 
-macroDefine :: MacCxtNode -> MacroDefinerCmd
-macroDefine (CxtDefMNode cxtId cxtDef) = do
+macroDefine' :: MacCxtNode -> MacroDefinerCmd
+macroDefine' (CxtDefMNode cxtId cxtDef) = do
   definer <- S.get
   S.put definer { macroDefinerContext = cxtId }
   macroContextDefine cxtDef
