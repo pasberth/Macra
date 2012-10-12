@@ -127,7 +127,14 @@ parseIntNumNonZero = try $ do
                   beginDigit = oneOf "123456789"
 
 parseProgram :: Parser ToplevelNode
-parseProgram = do { expr <- parseMaccall; eof; return $ EvalCxtTLNode expr }
+parseProgram = do
+             stat : stats <- many1 $ do { expr <- parseMaccall
+                                        ; skipSpaces
+                                        ; do { string ";"; return () } <|> do { eof; return () }
+                                        ; skipSpaces
+                                        ; return $ EvalCxtTLNode expr }
+             eof
+             return $ foldl (\a b -> BlockTLNode a b) stat stats
 
 parseExpr :: Parser Node
 parseExpr = parseLambdaSyntax <?> "a expression"

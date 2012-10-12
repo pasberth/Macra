@@ -32,7 +32,7 @@ spec = do
                             "#end\n",
                             "#end"]) (MacCxtTLNode
                                        (CxtDefMNode
-                                         (SymId "function")
+                                         "function"
                                          (MacDefMCNode
                                            (SymId "m")
                                            (MacParam (SymId "x"))
