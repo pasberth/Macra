@@ -6,6 +6,7 @@ import qualified Control.Monad.State as S
 data Value = Double Double
            | Char Char
            | List [Value]
+           | Closure Identifier Inst
            deriving (Show, Eq, Ord)
 
 data Identifier = Sym String | Nil deriving (Show, Eq, Ord)
@@ -21,7 +22,7 @@ data Inst = FrameInst  Inst       Inst      --hasnext
           | DefineInst Identifier Inst      --hasnext
           | HaltInst
           | PrintInst  Inst                 --hasnext
-          deriving (Show, Eq)
+          deriving (Show, Eq, Ord)
 
 data VM = VM {
      vmAcc :: Value
@@ -29,7 +30,7 @@ data VM = VM {
    , vmEnv :: Env
    , vmRib :: Rib
    , vmStack :: Stack
-     }
+     } deriving (Show)
 
 type Env = M.Map Identifier Value
 type Rib = [Value]
@@ -53,7 +54,9 @@ vm' :: VMCommand
 vm' = do
   vmState <- S.get
   case vmState of
-    VM a HaltInst e r s -> return ()
+    VM a HaltInst e r s -> do
+      S.liftIO $ print vmState
+      return ()
     VM a (ConstExpr val nxt) e r s -> do
       S.put vmState {
             vmAcc = val
@@ -67,7 +70,7 @@ vm' = do
             }
       vm'
     VM a (ReferInst id nxt) e r s -> do
-      case M.lookup id (vmEnv vmState) of
+      case M.lookup id e of
         Just v -> do
           S.put vmState {
                 vmAcc = v
@@ -78,3 +81,39 @@ vm' = do
           S.liftIO $ do
             putStr $ concat ["unbound variable: `", show id, "'"]
           return ()
+    VM a (DefineInst id nxt) e r s -> do
+      S.put vmState {
+            vmEnv = M.insert id a e
+          , vmInst = nxt
+            }
+      vm'
+    VM a (FrameInst ret nxt) e r s -> do
+      S.put vmState {
+            vmStack = (ret, e, r):s
+          , vmInst = nxt
+            }
+      vm'
+    VM a (ArgInst nxt) e r s -> do
+      S.put vmState {
+            vmRib = a:r
+          , vmInst = nxt
+            }
+      vm'
+    VM a ReturnInst _ _ ((ret, e, r):s) -> do
+      S.put vmState {
+            vmInst = ret
+          , vmEnv = e
+          , vmRib = r
+          , vmStack = s
+            }
+      vm'
+    VM a ReturnInst e r [] -> do
+      S.liftIO $ do
+        putStr $ concat ["stack is empty"]
+      return ()
+    VM a (CloseInst var body nxt) e r s -> do
+      S.put vmState {
+            vmAcc = Closure var body
+          , vmInst = nxt
+            }
+      vm'
