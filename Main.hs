@@ -18,3 +18,6 @@ main = do
     "--insts":str:xs -> case parse "(fname)" str of
                              Left x -> print x
                              Right (EvalCxtTLNode x) -> print (compile x HaltInst)
+    "--eval":str:xs -> case parse "(fname)" str of
+                             Left x -> print x
+                             Right (EvalCxtTLNode x) -> vm (compile (macroExpand emptyMacroMap toplevelContext x) HaltInst)
