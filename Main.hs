@@ -12,6 +12,9 @@ main = do
     "--nodes":str:xs -> case parse "(fname)" str of
                              Left x -> print x
                              Right x -> print x
+    "--expand":str:xs -> case parse "(fname)" str of
+                             Left x -> print x
+                             Right (EvalCxtTLNode x) -> print (macroExpand emptyMacroMap toplevelContext x)
     "--insts":str:xs -> case parse "(fname)" str of
                              Left x -> print x
                              Right (EvalCxtTLNode x) -> print (compile x HaltInst)
