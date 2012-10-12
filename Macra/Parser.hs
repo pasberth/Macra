@@ -45,6 +45,7 @@ data Node = SymNode Identifier
           | ReturnNode Node
           | FuncallNode Node Node
           | MaccallNode Node Node
+          | KwargNode Identifier Node
           deriving (Eq)
 
 instance Show Node where
@@ -59,6 +60,7 @@ instance Show Node where
   show (ReturnNode a) = concat ["!return", (indent2 $ show a)]
   show (FuncallNode a b) = concat ["!funcall", (indent2 $ show a), (indent2 $ show b)]
   show (MaccallNode a b) = concat ["#maccall", (indent2 $ show a), (indent2 $ show b)]
+  show (KwargNode kw arg) = concat ["Kwarg ", show kw, " = ", (indent2 $ show arg)]
 
 indent :: String -> String -> String
 indent idt node = foldl (\str x -> concat [str, "\n", idt,  x]) "" (lines node)
@@ -137,7 +139,7 @@ parseProgram = do
              return $ foldl (\a b -> BlockTLNode a b) stat stats
 
 parseExpr :: Parser Node
-parseExpr = parseLambdaSyntax <?> "a expression"
+parseExpr = parseKeywordArgument <?> "a expression"
 
 a :: (Node -> Node) -> Node -> Node -> Node
 a f n m = MaccallNode (f n) m
@@ -163,7 +165,7 @@ parseMaccall = parseMaccall' <?> "one of prefix/infix/suffix"
                                  expr1 <- parseLambdaSyntax
                                  sfxes <- many ((try $ do {
                                        op <- maccall
-                                       ; expr2 <- parseLambdaSyntax
+                                       ; expr2 <- parseKeywordArgument
                                        ; return $ (\node -> op node expr2)
                                        }) <|> (try $ do {
                                          op <- suffixOp
@@ -187,6 +189,14 @@ parseBracketMaccall = parseBracket <|> parseVMInst <|> parseId <|> parseNumber
                                     }
                           parseBracket = bracket "[" "]" <|>
                                        bracket "(" ")"
+
+parseKeywordArgument = parseKeywordArgument' <|> parseLambdaSyntax <?> "keyword argument"
+                     where parseKeywordArgument' = try $ do
+                                                 kw <- parseIdAsIdentifier
+                                                 string ":"
+                                                 requireSpaces
+                                                 arg <- parseExpr
+                                                 return $ KwargNode kw arg
 
 parseLambdaSyntax :: Parser Node
 parseLambdaSyntax = parseEqualArrow <|> parseComma <|> parseBracketMaccall
@@ -257,5 +267,5 @@ parseVMFuncall = try $ do
                a <- parseExpr
                return $ FuncallNode f a
 
-skipSpaces = skipMany (oneOf " \t\n")
-requireSpaces = skipMany1 (oneOf " \t\n")
+skipSpaces = skipMany (oneOf " \t\n") <?> "skipped spaces"
+requireSpaces = skipMany1 (oneOf " \t\n") <?> "spaces"

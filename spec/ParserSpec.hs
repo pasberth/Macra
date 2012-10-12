@@ -170,3 +170,18 @@ spec = do
                            (MaccallNode
                              (SymNode (SymId "a"))
                              (SymNode (SymId "b"))))
+
+    describe "Keyword argument" $ do
+      it "" $ do
+        cmpNode "if cond then: thenExpr else: elseExpr" $
+                (MaccallNode
+                  (MaccallNode
+                    (MaccallNode
+                      (SymNode (SymId "if"))
+                      (SymNode (SymId "cond")))
+                    (KwargNode
+                      (SymId "then")
+                      (SymNode (SymId "thenExpr"))))
+                  (KwargNode
+                    (SymId "else")
+                    (SymNode (SymId "elseExpr"))))
