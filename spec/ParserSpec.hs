@@ -12,13 +12,13 @@ cmpTLNode :: String -> ToplevelNode -> Expectation
 cmpTLNode program node = do
   case parse "(ParserSpec.hs)" program of
     Left x -> fail (show x)
-    Right x -> x `shouldBe` node
+    Right x -> x `shouldBe` [node]
 
 cmpNode :: String -> Node -> Expectation
 cmpNode program node = do
   case parse "(ParserSpec.hs)" program of
     Left x -> fail (show x)
-    Right (EvalCxtTLNode x) -> x `shouldBe` node
+    Right ((EvalCxtTLNode x):xs) -> x `shouldBe` node
 
 spec :: Spec
 spec = do

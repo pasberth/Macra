@@ -14,18 +14,16 @@ import Text.ParserCombinators.Parsec hiding (parse)
 
 data Identifier = SymId String | NilId deriving (Show, Eq, Ord)
 
+type ToplevelNodes = [ToplevelNode]
 data ToplevelNode = MacCxtTLNode MacCxtNode
                   | EvalCxtTLNode Node
-                  | BlockTLNode ToplevelNode ToplevelNode
                   deriving (Show, Eq)
 
 data MacCxtNode = CxtDefMNode CxtId CxtDefMNode
                 | SigDefMNode Identifier SigList
-                | BlockMNode MacCxtNode MacCxtNode
                 deriving (Show, Eq)
 
 data CxtDefMNode = MacDefMCNode Identifier MacParams Node
-                 | BlockMCNode CxtDefMNode CxtDefMNode
                  deriving (Show, Eq)
 
 type SigList = [CxtId]
@@ -66,7 +64,7 @@ indent :: String -> String -> String
 indent idt node = foldl (\str x -> concat [str, "\n", idt,  x]) "" (lines node)
 indent2 node = indent "  " node
 
-parse :: FilePath -> String -> Either ParseError ToplevelNode
+parse :: FilePath -> String -> Either ParseError ToplevelNodes
 parse fname program =
       case P.parse parseProgram fname program of
             Left x -> Left x
@@ -128,15 +126,15 @@ parseIntNumNonZero = try $ do
             where digit = oneOf "0123456789"
                   beginDigit = oneOf "123456789"
 
-parseProgram :: Parser ToplevelNode
+parseProgram :: Parser ToplevelNodes
 parseProgram = do
-             stat : stats <- many1 $ do { expr <- parseMaccall
-                                        ; skipSpaces
-                                        ; do { string ";"; return () } <|> do { eof; return () }
-                                        ; skipSpaces
-                                        ; return $ EvalCxtTLNode expr }
+             stats <- many $ do { expr <- parseMaccall
+                                ; skipSpaces
+                                ; do { string ";"; return () } <|> do { eof; return () }
+                                ; skipSpaces
+                                ; return $ EvalCxtTLNode expr }
              eof
-             return $ foldl (\a b -> BlockTLNode a b) stat stats
+             return stats
 
 parseExpr :: Parser Node
 parseExpr = parseKeywordArgument <?> "a expression"
