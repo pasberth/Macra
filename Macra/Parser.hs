@@ -1,5 +1,6 @@
 
 module Macra.Parser (Identifier(..),
+                     ToplevelNodes,
                      ToplevelNode(..),
                      MacCxtNode(..),
                      CxtDefMNode(..),

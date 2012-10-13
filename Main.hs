@@ -14,10 +14,23 @@ main = do
                              Right x -> print x
     "--expand":str:xs -> case parse "(fname)" str of
                              Left x -> print x
-                             Right ((EvalCxtTLNode x):xs) -> print (macroExpand emptyMacroMap toplevelContext x)
-    "--insts":str:xs -> case parse "(fname)" str of
+                             Right x -> print "" -- $ expand' (define' x) x
+    "--insts":str:xs ->  case parse "(fname)" str of
                              Left x -> print x
-                             Right ((EvalCxtTLNode x):xs) -> print (compile x HaltInst)
-    "--eval":str:xs -> case parse "(fname)" str of
+                             Right x -> print $ compile' (define' x) x
+    "--eval":str:xs ->  case parse "(fname)" str of
                              Left x -> print x
-                             Right ((EvalCxtTLNode x):xs) -> vm (compile (macroExpand emptyMacroMap toplevelContext x) HaltInst)
+                             Right x -> eval' x
+
+  where eval' :: ToplevelNodes -> IO ()
+        eval' x = vm (compile' (define' x) x)
+        compile' :: MacroMap -> ToplevelNodes -> Inst 
+        compile' mm ((MacCxtTLNode x):xs) = compile' mm xs
+        compile' mm ((EvalCxtTLNode x):xs) = compile (expand' mm x) (compile' mm xs)
+        compile' mm [] = HaltInst
+        define' :: ToplevelNodes -> MacroMap
+        define' ((EvalCxtTLNode x):xs) = define' xs
+        define' ((MacCxtTLNode x):xs) = macroDefine (define' xs) toplevelContext x
+        define' [] = emptyMacroMap
+        expand' :: MacroMap -> Node -> Node
+        expand' mm x = (macroExpand mm toplevelContext x)

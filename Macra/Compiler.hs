@@ -1,4 +1,5 @@
-module Macra.Compiler (compile,
+module Macra.Compiler (MacroMap,
+                       compile,
                        macroDefine,
                        macroExpand,
                        emptyMacroMap,
