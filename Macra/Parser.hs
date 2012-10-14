@@ -43,6 +43,7 @@ data Node = SymNode Identifier
           | DefineNode Identifier Node
           | ReturnNode Node
           | FuncallNode Node Node
+          | PrintNode
           | MaccallNode Node Node
           | KwargNode Identifier Node
           deriving (Eq)
@@ -60,6 +61,7 @@ instance Show Node where
   show (FuncallNode a b) = concat ["!funcall", (indent2 $ show a), (indent2 $ show b)]
   show (MaccallNode a b) = concat ["#maccall", (indent2 $ show a), (indent2 $ show b)]
   show (KwargNode kw arg) = concat ["Kwarg ", show kw, " = ", (indent2 $ show arg)]
+  show PrintNode = "!print"
 
 indent :: String -> String -> String
 indent idt node = foldl (\str x -> concat [str, "\n", idt,  x]) "" (lines node)
@@ -221,7 +223,7 @@ parseComma = try (do
            ) <?> "`,'"
 
 parseVMInst :: Parser Node
-parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMReturn <|> parseVMDefine <|> parseVMFuncall
+parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMReturn <|> parseVMDefine <|> parseVMFuncall <|> parseVMPrint
 
 parseVMIf :: Parser Node
 parseVMIf = try $ do
@@ -265,6 +267,11 @@ parseVMFuncall = try $ do
                skipSpaces
                a <- parseExpr
                return $ FuncallNode f a
+
+parseVMPrint :: Parser Node
+parseVMPrint = try $ do
+             string "!print"
+             return PrintNode
 
 skipSpaces = skipMany (oneOf " \t\n") <?> "skipped spaces"
 requireSpaces = skipMany1 (oneOf " \t\n") <?> "spaces"

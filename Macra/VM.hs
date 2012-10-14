@@ -7,8 +7,13 @@ data Value = Double Double
            | Char Char
            | List [Value]
            | Closure Identifier Inst Env
-           deriving (Show, Eq, Ord)
+           deriving (Eq, Ord)
 
+instance Show Value where
+  show (Char c) = [c]
+  show (Double i) = show i
+  show (List xs) = concat ["(", concat (map (\x -> (show x) ++ ";") xs), ")"]
+  show (Closure var body e) = concat [show var, show body, show e]
 data Identifier = Sym String | Nil deriving (Show, Eq, Ord)
 
 data Inst = FrameInst  Inst       Inst      --hasnext
