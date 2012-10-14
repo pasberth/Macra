@@ -95,7 +95,7 @@ compileNode (IfNode condExp thenExp) next =
 compileNode (LambdaNode (P.SymId param) expr) next = 
   CloseInst (VM.Sym param) (compileNode expr ReturnInst) next
 compileNode (DefineNode (P.SymId var) val) next =
-  DefineInst (VM.Sym var) next
+  compileNode val $ DefineInst (VM.Sym var) next
 compileNode (FuncallNode lambda argument) next = 
   FrameInst next (compileNode argument (ArgInst (compileNode lambda ApplyInst)))
 compileNode PrintNode next = PrintInst next
