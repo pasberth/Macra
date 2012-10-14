@@ -12,17 +12,9 @@ main = do
     "--nodes":str:xs -> case parse "(fname)" str of
                              Left x -> print x
                              Right x -> print x
-    "--expand":str:xs -> case parse "(fname)" str of
-                             Left x -> print x
-                             Right x -> print ""
     "--insts":str:xs ->  case parse "(fname)" str of
                              Left x -> print x
                              Right x -> print $ compile (macroDefine x) x
     "--eval":str:xs ->  case parse "(fname)" str of
                              Left x -> print x
-                             Right x -> eval' x
-
-  where eval' :: ToplevelNodes -> IO ()
-        eval' x = vm (compile (macroDefine x) x)
-        expand' :: MacroMap -> Node -> Node
-        expand' mm x = (macroExpand mm toplevelContext x)
+                             Right x -> vm (compile (macroDefine x) x)
