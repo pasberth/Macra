@@ -69,21 +69,27 @@ macroExpand mm cxt (MaccallNode a b) =
   _ -> (FuncallNode (macroExpand mm cxt a) (macroExpand mm cxt b))
 macroExpand mm cxt node = node
 
-compile :: Node -> Inst -> Inst
+compile :: MacroMap -> ToplevelNodes -> Inst 
+compile mm ((MacCxtTLNode x):xs) = compile mm xs
+compile mm ((EvalCxtTLNode x):xs) = compileNode (macroExpand mm toplevelContext x) (compile mm xs)
+compile mm [] = HaltInst
 
-compile (SymNode (P.SymId symbol)) next =
+
+compileNode :: Node -> Inst -> Inst
+
+compileNode (SymNode (P.SymId symbol)) next =
   ReferInst (VM.Sym symbol) next
-compile (CharNode chr) next =
+compileNode (CharNode chr) next =
   ConstExpr (VM.Char chr) next
-compile (NumNode num) next =
+compileNode (NumNode num) next =
   ConstExpr (VM.Double num) next
 {-compile (ListNode [node]) nil next =
   ConstExpr (List [Char node]) next-}
-compile (IfNode condExp thenExp) next =
-  TestInst (compile condExp next) (compile thenExp next) next
-compile (LambdaNode (P.SymId param) expr) next = 
-  CloseInst (VM.Sym param) (compile expr ReturnInst) next
-compile (DefineNode (P.SymId var) val) next =
+compileNode (IfNode condExp thenExp) next =
+  TestInst (compileNode condExp next) (compileNode thenExp next) next
+compileNode (LambdaNode (P.SymId param) expr) next = 
+  CloseInst (VM.Sym param) (compileNode expr ReturnInst) next
+compileNode (DefineNode (P.SymId var) val) next =
   DefineInst (VM.Sym var) next
-compile (FuncallNode lambda argument) next = 
-  FrameInst next (compile argument (ArgInst (compile lambda ApplyInst)))
+compileNode (FuncallNode lambda argument) next = 
+  FrameInst next (compileNode argument (ArgInst (compileNode lambda ApplyInst)))
