@@ -40,11 +40,16 @@ toplevelContext = "toplevel"
 emptyMacroMap :: MacroMap
 emptyMacroMap = M.fromList []
 
-macroDefine :: MacroMap -> P.CxtId -> MacCxtNode -> MacroMap
-macroDefine mm cxt node = S.evalState (macroDefine' node) (MacroDefiner mm cxt)
+macroDefine :: ToplevelNodes -> MacroMap
+macroDefine ((EvalCxtTLNode x):xs) = macroDefine xs
+macroDefine ((MacCxtTLNode x):xs) = macroDefineMacCxtNode (macroDefine xs) x
+macroDefine [] = emptyMacroMap
 
-macroDefine' :: MacCxtNode -> MacroDefinerCmd
-macroDefine' (CxtDefMNode cxtId cxtDef) = do
+macroDefineMacCxtNode :: MacroMap -> MacCxtNode -> MacroMap
+macroDefineMacCxtNode mm node = S.evalState (macroDefineMacCxtNode' node) (MacroDefiner mm toplevelContext)
+
+macroDefineMacCxtNode' :: MacCxtNode -> MacroDefinerCmd
+macroDefineMacCxtNode' (CxtDefMNode cxtId cxtDef) = do
   definer <- S.get
   S.put definer { macroDefinerContext = cxtId }
   macroContextDefine cxtDef
