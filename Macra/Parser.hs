@@ -43,7 +43,7 @@ data Node = SymNode Identifier
           | DefineNode Identifier Node
           | ReturnNode Node
           | FuncallNode Node Node
-          | PrintNode
+          | PrintNode Node
           | MaccallNode Node Node
           | KwargNode Identifier Node
           deriving (Eq)
@@ -61,7 +61,7 @@ instance Show Node where
   show (FuncallNode a b) = concat ["!funcall", (indent2 $ show a), (indent2 $ show b)]
   show (MaccallNode a b) = concat ["#maccall", (indent2 $ show a), (indent2 $ show b)]
   show (KwargNode kw arg) = concat ["Kwarg ", show kw, " = ", (indent2 $ show arg)]
-  show PrintNode = "!print"
+  show (PrintNode a) = concat ["!print", (indent2 $ show a)]
 
 indent :: String -> String -> String
 indent idt node = foldl (\str x -> concat [str, "\n", idt,  x]) "" (lines node)
@@ -271,7 +271,9 @@ parseVMFuncall = try $ do
 parseVMPrint :: Parser Node
 parseVMPrint = try $ do
              string "!print"
-             return PrintNode
+             requireSpaces
+             a <- parseExpr
+             return (PrintNode a)
 
 skipSpaces = skipMany (oneOf " \t\n") <?> "skipped spaces"
 requireSpaces = skipMany1 (oneOf " \t\n") <?> "spaces"
