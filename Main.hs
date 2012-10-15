@@ -18,3 +18,8 @@ main = do
     "--eval":str:xs ->  case parse "(fname)" str of
                              Left x -> print x
                              Right x -> vm (compile (macroDefine x) x)
+    path:xs -> do
+            str <- readFile path
+            case parse path str of
+                       Left x -> print x
+                       Right x -> vm (compile (macroDefine x) x)

@@ -1,0 +1,3 @@
+!define true !lambda x !lambda y x;
+!define false !lambda x !lambda y y;
+true 1 2;
