@@ -161,12 +161,16 @@ vm' = do
       S.liftIO $ do
         putStr $ concat ["stack is empty"]
       return ()
-    VM a (CloseInst var body nxt) envRef r s _ -> do
-      S.put vmState {
-            vmAcc = Closure var body envRef
-          , vmInst = nxt
-            }
-      vm'
+    VM a (CloseInst var body nxt) envRef r s mem -> do
+      closedEnvRef <- S.lift U.newUnique
+      case M.lookup envRef mem of
+        Just e -> do
+          S.put vmState {
+                vmAcc = Closure var body closedEnvRef
+              , vmEnvMem = M.insert closedEnvRef e mem
+              , vmInst = nxt
+                }
+          vm'
     _ -> do
      S.liftIO $ do
        print "** VM BUG **: "
