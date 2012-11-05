@@ -4,12 +4,14 @@ module Macra.Parser (Identifier(..),
                      ToplevelNode(..),
                      MacCxtNode(..),
                      CxtDefMNode(..),
-                     MacParams(..),
                      Node(..),
                      SigList,
                      CxtId,
                      parse) where
 
+import Control.Monad
+import Control.Monad.Trans
+import qualified Control.Monad.State as S
 import qualified Text.ParserCombinators.Parsec as P
 import Text.ParserCombinators.Parsec hiding (parse)
 
@@ -24,15 +26,11 @@ data MacCxtNode = CxtDefMNode CxtId CxtDefMNode
                 | SigDefMNode Identifier SigList
                 deriving (Show, Eq)
 
-data CxtDefMNode = MacDefMCNode Identifier MacParams Node
+data CxtDefMNode = MacDefMCNode Node Node
                  deriving (Show, Eq)
 
 type SigList = [CxtId]
 type CxtId = String
-
-data MacParams = MacParams MacParams MacParams
-               | MacParam Identifier
-               deriving (Show, Eq)
 
 data Node = SymNode Identifier
           | CharNode Char
@@ -131,13 +129,58 @@ parseIntNumNonZero = try $ do
 
 parseProgram :: Parser ToplevelNodes
 parseProgram = do
-             stats <- many $ do { expr <- parseMaccall
-                                ; skipSpaces
-                                ; do { string ";"; return () } <|> do { eof; return () }
-                                ; skipSpaces
-                                ; return $ EvalCxtTLNode expr }
+             stats <- many $ parseEvalCxtStat <|> parseMacCxtStat
+--             stats <- many $ S.runState (do
+--                 return $ case S.get of
+--                   "eval" -> lift $ parseEvalCxtStat
+--                   "mac"  -> lift $ parseMacCxtStat
+--                 ) "eval"
              eof
              return stats
+
+parseMacCxtStat :: Parser ToplevelNode
+parseMacCxtStat = do
+                cxtDef <- parseCxtDef
+                return $ MacCxtTLNode cxtDef
+
+parseCxtId :: Parser CxtId
+parseCxtId = try parseCxtId'
+           where parseCxtId' = do
+                             a <- beginLetter
+                             b <- many containLetter
+                             return $ (a:b)
+                             where beginLetter = letter
+                                   containLetter = letter <|>
+                                                   oneOf "0123456789" <|>
+                                                   oneOf "-"
+
+parseCxtDef :: Parser MacCxtNode
+parseCxtDef = do
+            string "#context"
+            requireSpaces
+            cxtId <- parseCxtId
+            requireSpaces
+            macDef <- parseMacDef
+            string "#end"
+            requireSpaces
+            return $ CxtDefMNode cxtId macDef
+
+parseMacDef :: Parser CxtDefMNode
+parseMacDef = do
+            bind <- parseMaccall
+            skipSpaces
+            string "="
+            skipSpaces
+            defi <- parseMaccall
+            return $ MacDefMCNode bind defi
+
+parseEvalCxtStat :: Parser ToplevelNode
+parseEvalCxtStat = do
+                 expr <- parseMaccall
+                 skipSpaces
+                 do { string ";"; return () } <|> do { eof; return () }
+                 skipSpaces
+                 return $ EvalCxtTLNode expr
 
 parseExpr :: Parser Node
 parseExpr = parseKeywordArgument <?> "a expression"

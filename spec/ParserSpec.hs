@@ -34,8 +34,9 @@ spec = do
                                        (CxtDefMNode
                                          "function"
                                          (MacDefMCNode
-                                           (SymId "m")
-                                           (MacParam (SymId "x"))
+                                           (MaccallNode
+                                             (SymNode (SymId "m"))
+                                             (SymNode (SymId "x")))
                                            (SymNode (SymId "x")))))
 
     describe "Arrow Syntax and Comma Syntax" $ do
