@@ -98,5 +98,7 @@ compileNode (DefineNode (P.SymId var) val) next =
   compileNode val $ DefineInst (VM.Sym var) next
 compileNode (FuncallNode lambda argument) next = 
   FrameInst next (compileNode argument (ArgInst (compileNode lambda ApplyInst)))
+compileNode (MaccallNode a b) next =
+  compileNode (FuncallNode a b) next
 compileNode (PrintNode argument) next =
   compileNode argument $ PrintInst next

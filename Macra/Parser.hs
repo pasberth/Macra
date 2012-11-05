@@ -183,7 +183,7 @@ parseEvalCxtStat = do
                  return $ EvalCxtTLNode expr
 
 parseExpr :: Parser Node
-parseExpr = parseKeywordArgument <?> "a expression"
+parseExpr = parseDollarPref <?> "a expression"
 
 a :: (Node -> Node) -> Node -> Node -> Node
 a f n m = MaccallNode (f n) m
@@ -209,7 +209,7 @@ parseMaccall = parseMaccall' <?> "one of prefix/infix/suffix"
                                  expr1 <- parseLambdaSyntax
                                  sfxes <- many ((try $ do {
                                        op <- maccall
-                                       ; expr2 <- parseKeywordArgument
+                                       ; expr2 <- parseDollarPref
                                        ; return $ (\node -> op node expr2)
                                        }) <|> (try $ do {
                                          op <- suffixOp
@@ -233,8 +233,15 @@ parseBracketMaccall = parseBracket <|> parseVMInst <|> parseId <|> parseNumber
                                     }
                           parseBracket = bracket "[" "]" <|>
                                        bracket "(" ")"
+parseDollarPref = parseDollarPref' <|> parseKeywordArgument
+                <?> "dollar preferences"
+                where parseDollarPref' = try $ do
+                                       string "$"
+                                       skipSpaces
+                                       parseMaccall >>= return
 
-parseKeywordArgument = parseKeywordArgument' <|> parseLambdaSyntax <?> "keyword argument"
+parseKeywordArgument = parseKeywordArgument' <|> parseLambdaSyntax
+                     <?> "keyword argument"
                      where parseKeywordArgument' = try $ do
                                                  kw <- parseIdAsIdentifier
                                                  string ":"

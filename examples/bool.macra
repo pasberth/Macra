@@ -1,3 +1,4 @@
 !define true !lambda x !lambda y x;
 !define false !lambda x !lambda y y;
-true 1 2;
+!print $ true 1 2;
+!print $ false 1 2;

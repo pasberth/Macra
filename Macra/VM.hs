@@ -78,7 +78,6 @@ vm' = do
   vmState <- S.get
   case vmState of
     VM a HaltInst e r s _ -> do
-      S.liftIO $ print vmState
       return ()
     VM a (ConstExpr val nxt) e r s _ -> do
       S.put vmState {
