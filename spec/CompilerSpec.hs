@@ -20,14 +20,14 @@ spec = do
 
       it "a" $ do
 
-         (macroDefine emptyMacroMap
-                      toplevelContext
-                      (CxtDefMNode
-                        "function"
-                        (MacDefMCNode
-                          (SymId "m")
-                          (MacParam (SymId "x"))
-                          (SymNode (SymId "x"))))) `shouldBe`
+         (macroDefine [ (MacCxtTLNode
+                          (CxtDefMNode
+                            "function"
+                            (MacDefMCNode
+                              (SymId "m")
+                              (MacParam (SymId "x"))
+                              (SymNode (SymId "x")))))
+                      ]) `shouldBe`
                           fromList [
                             (("function", (SymId "m")), ((MacParam (SymId "x")),
                                                  (SymNode (SymId "x"))))
