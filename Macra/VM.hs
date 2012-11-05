@@ -127,13 +127,16 @@ vm' = do
           , vmInst = nxt
             }
       vm'
-    VM a ApplyInst envRef (val:r) s _ -> do
+    VM a ApplyInst _ (val:r) s mem -> do
       case a of
         (Closure (Sym var) body envRef) -> do
-          case M.lookup envRef (vmEnvMem vmState) of
+          case M.lookup envRef mem of
             Just ce -> do
               S.put vmState {
-                    vmEnvMem = M.insert envRef (M.insert (Sym var) val ce) (vmEnvMem vmState)
+                    vmEnvRef = envRef
+                  , vmEnvMem = (M.insert envRef
+                                         (M.insert (Sym var) val ce)
+                                         mem)
                   , vmInst = body
                     }
               vm'
