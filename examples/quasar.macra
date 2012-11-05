@@ -1,1 +1,1 @@
-blackhole = x => blackhole
+blackhole := x => blackhole
