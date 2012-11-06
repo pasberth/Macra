@@ -6,6 +6,7 @@ module Macra.Parser (Identifier(..),
                      Node(..),
                      SigList,
                      CxtId,
+                     MacParams,
                      parse) where
 
 import qualified Text.ParserCombinators.Parsec as P
@@ -21,11 +22,12 @@ data MacCxtNode = CxtDefMNode CxtId [CxtDefMNode]
                 | SigDefMNode Identifier SigList
                 deriving (Show, Eq)
 
-data CxtDefMNode = MacDefMCNode Node Node
+data CxtDefMNode = MacDefMCNode Identifier MacParams Node
                  deriving (Show, Eq)
 
 type SigList = [CxtId]
 type CxtId = String
+type MacParams = [Identifier]
 
 data Node = SymNode Identifier
           | CharNode Char
@@ -161,12 +163,18 @@ parseCxtDef = do
 
 parseMacDef :: Parser CxtDefMNode
 parseMacDef = do
-            bind <- parseMaccall
+            (id, params) <- parseMacDefIdAndParams
             skipSpaces
             string "="
             skipSpaces
             defi <- parseMaccall
-            return $ MacDefMCNode bind defi
+            return $ MacDefMCNode id params defi
+
+parseMacDefIdAndParams :: Parser (Identifier, MacParams)
+parseMacDefIdAndParams = do
+                       id <- parseIdAsIdentifier
+                       params <- many (requireSpaces >> parseIdAsIdentifier)
+                       return (id, params)
 
 parseEvalCxtStat :: Parser ToplevelNode
 parseEvalCxtStat = do

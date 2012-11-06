@@ -21,15 +21,17 @@ spec = do
       it "a" $ do
 
          (macroDefine [ (MacCxtTLNode
-                          (CxtDefMNode
-                            "function"
-                            (MacDefMCNode
-                              (SymId "m")
-                              (MacParam (SymId "x"))
-                              (SymNode (SymId "x")))))
+                          [ (CxtDefMNode
+                              "function"
+                              [ (MacDefMCNode
+                                  (SymId "m")
+                                  [(SymId "x")]
+                                  (SymNode (SymId "x")))
+                              ])
+                          ])
                       ]) `shouldBe`
                           fromList [
-                            (("function", (SymId "m")), ((MacParam (SymId "x")),
+                            (("function", (SymId "m")), ([(SymId "x")],
                                                  (SymNode (SymId "x"))))
                           ]
     describe "macro expansion" $ do

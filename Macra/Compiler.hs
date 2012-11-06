@@ -18,7 +18,7 @@ data MacroDefiner = MacroDefiner {
      }
 
 type MacroMap = M.Map (P.CxtId, P.Identifier) Macro
-type Macro = (Node, Node)
+type Macro = (MacParams, Node)
 type MacroDefinerCmd = S.State MacroDefiner MacroMap
 
 data SignatureDefiner = SignatureDefiner {
@@ -67,7 +67,7 @@ macroContextDefine [] = do
                       return $ macroDefinerMacroMap definer
 
 macroContextDefine' :: CxtDefMNode -> MacroDefinerCmd
-macroContextDefine' (MacDefMCNode (MaccallNode (SymNode macId) params) node) = do
+macroContextDefine' (MacDefMCNode macId params node) = do
   definer <- S.get
   S.put definer {
         macroDefinerMacroMap = M.insert ((macroDefinerContext definer), macId)
