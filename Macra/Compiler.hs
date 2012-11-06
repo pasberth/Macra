@@ -78,12 +78,7 @@ macroContextDefine' (MacDefMCNode macId params node) = do
   return (macroDefinerMacroMap newDefiner)
 
 macroExpand :: MacroMap -> P.CxtId -> Node -> Node
-macroExpand mm cxt (MaccallNode a b) =
-  case a of
-  SymNode sym -> case M.lookup (cxt, sym) mm of
-                         -- Just m -> m
-                         Nothing -> (FuncallNode (SymNode sym) (macroExpand mm cxt b))
-  _ -> (FuncallNode (macroExpand mm cxt a) (macroExpand mm cxt b))
+--macroExpand mm cxt (MaccallNode a b) =
 macroExpand mm cxt node = node
 
 compile :: MacroMap -> [ToplevelNode] -> Inst 
