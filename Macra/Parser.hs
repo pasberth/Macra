@@ -130,7 +130,11 @@ parseProgram = do
 
 parseMacCxtStat :: Parser ToplevelNode
 parseMacCxtStat = do
-                cxtDef <- many1 parseCxtDef
+                string "#macro"
+                requireSpaces
+                cxtDef <- many parseCxtDef
+                skipSpaces
+                string "#end"
                 return $ MacCxtTLNode cxtDef
 
 parseCxtId :: Parser CxtId
@@ -151,8 +155,8 @@ parseCxtDef = do
             cxtId <- parseCxtId
             requireSpaces
             macDef <- many parseMacDef
-            string "#end"
             requireSpaces
+            string "#end"
             return $ CxtDefMNode cxtId macDef
 
 parseMacDef :: Parser CxtDefMNode
