@@ -34,18 +34,17 @@ spec = do
                             (("function", (SymId "m")), ([(SymId "x")],
                                                  (SymNode (SymId "x"))))
                           ]
-    describe "macro expansion" $ do
+
+    describe "macro expansion " $ do
 
       it "a" $ do
-        (macroExpand emptyMacroMap
-                     toplevelContext
+        (macroExpand (fromList
+                       [ ( (toplevelContext, (SymId "m")),
+                           ([(SymId "x")], (SymNode (SymId "x")))
+                         )
+                       ])
+                     [toplevelContext]
                      (MaccallNode
-                       (MaccallNode
-                         (SymNode (SymId "a"))
-                         (SymNode (SymId "b")))
-                       (SymNode (SymId "c")))) `shouldBe`
-                         (FuncallNode
-                           (FuncallNode
-                             (SymNode (SymId "a"))
-                             (SymNode (SymId "b")))
-                           (SymNode (SymId "c")))
+                       (SymNode (SymId "m"))
+                       (SymNode (SymId "a"))) `shouldBe`
+                         (SymNode (SymId "a")))

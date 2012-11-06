@@ -77,13 +77,22 @@ macroContextDefine' (MacDefMCNode macId params node) = do
   newDefiner <- S.get
   return (macroDefinerMacroMap newDefiner)
 
-macroExpand :: MacroMap -> P.CxtId -> Node -> Node
---macroExpand mm cxt (MaccallNode a b) =
-macroExpand mm cxt node = node
+macroExpand :: MacroMap -> Signature -> Node -> Node
+macroExpand mm (cxt:sig) (MaccallNode (SymNode a) b) =
+  case M.lookup (cxt, a) mm of
+    Just macroNode -> macroReplace macroNode b
+    -- TODO: Nothing ->
+macroExpand mm _ node = node
+
+macroReplace :: Macro -> Node -> Node
+macroReplace ((param:params), (SymNode sym)) node
+             | param == sym = node
+             | otherwise = SymNode sym
+macroReplace (macParams, macNode) node = macNode
 
 compile :: MacroMap -> [ToplevelNode] -> Inst 
 compile mm ((MacCxtTLNode x):xs) = compile mm xs
-compile mm ((EvalCxtTLNode x):xs) = compileNode (macroExpand mm toplevelContext x) (compile mm xs)
+compile mm ((EvalCxtTLNode x):xs) = compileNode (macroExpand mm [toplevelContext] x) (compile mm xs)
 compile mm [] = HaltInst
 
 
