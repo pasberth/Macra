@@ -31,13 +31,15 @@ spec = do
                             "m x = x\n",
                             "#end\n",
                             "#end"]) (MacCxtTLNode
-                                       (CxtDefMNode
-                                         "function"
-                                         (MacDefMCNode
-                                           (MaccallNode
-                                             (SymNode (SymId "m"))
+                                       [ (CxtDefMNode
+                                           "function"
+                                           [ (MacDefMCNode
+                                             (MaccallNode
+                                               (SymNode (SymId "m"))
+                                               (SymNode (SymId "x")))
                                              (SymNode (SymId "x")))
-                                           (SymNode (SymId "x")))))
+                                           ])
+                                       ])
 
     describe "Arrow Syntax and Comma Syntax" $ do
 

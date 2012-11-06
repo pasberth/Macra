@@ -1,6 +1,5 @@
 
 module Macra.Parser (Identifier(..),
-                     ToplevelNodes,
                      ToplevelNode(..),
                      MacCxtNode(..),
                      CxtDefMNode(..),
@@ -9,20 +8,16 @@ module Macra.Parser (Identifier(..),
                      CxtId,
                      parse) where
 
-import Control.Monad
-import Control.Monad.Trans
-import qualified Control.Monad.State as S
 import qualified Text.ParserCombinators.Parsec as P
 import Text.ParserCombinators.Parsec hiding (parse)
 
 data Identifier = SymId String | NilId deriving (Show, Eq, Ord)
 
-type ToplevelNodes = [ToplevelNode]
-data ToplevelNode = MacCxtTLNode MacCxtNode
+data ToplevelNode = MacCxtTLNode [MacCxtNode]
                   | EvalCxtTLNode Node
                   deriving (Show, Eq)
 
-data MacCxtNode = CxtDefMNode CxtId CxtDefMNode
+data MacCxtNode = CxtDefMNode CxtId [CxtDefMNode]
                 | SigDefMNode Identifier SigList
                 deriving (Show, Eq)
 
@@ -65,7 +60,7 @@ indent :: String -> String -> String
 indent idt node = foldl (\str x -> concat [str, "\n", idt,  x]) "" (lines node)
 indent2 node = indent "  " node
 
-parse :: FilePath -> String -> Either ParseError ToplevelNodes
+parse :: FilePath -> String -> Either ParseError [ToplevelNode]
 parse fname program =
       case P.parse parseProgram fname program of
             Left x -> Left x
@@ -127,20 +122,15 @@ parseIntNumNonZero = try $ do
             where digit = oneOf "0123456789"
                   beginDigit = oneOf "123456789"
 
-parseProgram :: Parser ToplevelNodes
+parseProgram :: Parser [ToplevelNode]
 parseProgram = do
              stats <- many $ parseEvalCxtStat <|> parseMacCxtStat
---             stats <- many $ S.runState (do
---                 return $ case S.get of
---                   "eval" -> lift $ parseEvalCxtStat
---                   "mac"  -> lift $ parseMacCxtStat
---                 ) "eval"
              eof
              return stats
 
 parseMacCxtStat :: Parser ToplevelNode
 parseMacCxtStat = do
-                cxtDef <- parseCxtDef
+                cxtDef <- many1 parseCxtDef
                 return $ MacCxtTLNode cxtDef
 
 parseCxtId :: Parser CxtId
@@ -160,7 +150,7 @@ parseCxtDef = do
             requireSpaces
             cxtId <- parseCxtId
             requireSpaces
-            macDef <- parseMacDef
+            macDef <- many parseMacDef
             string "#end"
             requireSpaces
             return $ CxtDefMNode cxtId macDef

@@ -40,22 +40,34 @@ toplevelContext = "toplevel"
 emptyMacroMap :: MacroMap
 emptyMacroMap = M.fromList []
 
-macroDefine :: ToplevelNodes -> MacroMap
+macroDefine :: [ToplevelNode] -> MacroMap
 macroDefine ((EvalCxtTLNode x):xs) = macroDefine xs
-macroDefine ((MacCxtTLNode x):xs) = macroDefineMacCxtNode (macroDefine xs) x
+macroDefine ((MacCxtTLNode x):xs) = macroDefineMacCxtNodes (macroDefine xs) x
 macroDefine [] = emptyMacroMap
+
+macroDefineMacCxtNodes :: MacroMap -> [MacCxtNode] -> MacroMap
+macroDefineMacCxtNodes mm (node:nodes) = macroDefineMacCxtNodes
+                                           (macroDefineMacCxtNode mm node)
+                                           nodes
+macroDefineMacCxtNodes mm [] = mm
 
 macroDefineMacCxtNode :: MacroMap -> MacCxtNode -> MacroMap
 macroDefineMacCxtNode mm node = S.evalState (macroDefineMacCxtNode' node) (MacroDefiner mm toplevelContext)
 
 macroDefineMacCxtNode' :: MacCxtNode -> MacroDefinerCmd
-macroDefineMacCxtNode' (CxtDefMNode cxtId cxtDef) = do
+macroDefineMacCxtNode' (CxtDefMNode cxtId (cxtDefs)) = do
   definer <- S.get
   S.put definer { macroDefinerContext = cxtId }
-  macroContextDefine cxtDef
+  macroContextDefine cxtDefs
 
-macroContextDefine :: CxtDefMNode -> MacroDefinerCmd
-macroContextDefine (MacDefMCNode (MaccallNode (SymNode macId) params) node) = do
+macroContextDefine :: [CxtDefMNode] -> MacroDefinerCmd
+macroContextDefine (x:xs) = macroContextDefine' x >> macroContextDefine xs
+macroContextDefine [] = do
+                      definer <- S.get
+                      return $ macroDefinerMacroMap definer
+
+macroContextDefine' :: CxtDefMNode -> MacroDefinerCmd
+macroContextDefine' (MacDefMCNode (MaccallNode (SymNode macId) params) node) = do
   definer <- S.get
   S.put definer {
         macroDefinerMacroMap = M.insert ((macroDefinerContext definer), macId)
@@ -74,7 +86,7 @@ macroExpand mm cxt (MaccallNode a b) =
   _ -> (FuncallNode (macroExpand mm cxt a) (macroExpand mm cxt b))
 macroExpand mm cxt node = node
 
-compile :: MacroMap -> ToplevelNodes -> Inst 
+compile :: MacroMap -> [ToplevelNode] -> Inst 
 compile mm ((MacCxtTLNode x):xs) = compile mm xs
 compile mm ((EvalCxtTLNode x):xs) = compileNode (macroExpand mm toplevelContext x) (compile mm xs)
 compile mm [] = HaltInst
