@@ -173,7 +173,7 @@ parseMacDef = do
 parseMacDefIdAndParams :: Parser (Identifier, MacParams)
 parseMacDefIdAndParams = do
                        id <- parseIdAsIdentifier
-                       params <- many (requireSpaces >> parseIdAsIdentifier)
+                       params <- many (try $ requireSpaces >> parseIdAsIdentifier)
                        return (id, params)
 
 parseEvalCxtStat :: Parser ToplevelNode
