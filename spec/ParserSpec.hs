@@ -34,9 +34,8 @@ spec = do
                                        [ (CxtDefMNode
                                            "function"
                                            [ (MacDefMCNode
-                                             (MaccallNode
-                                               (SymNode (SymId "m"))
-                                               (SymNode (SymId "x")))
+                                             (SymId "m")
+                                             [(SymId "x")]
                                              (SymNode (SymId "x")))
                                            ])
                                        ])
