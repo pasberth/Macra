@@ -34,7 +34,7 @@ data MacroExpander = MacroExpander {
    , macroExpanderSignatureMap :: SignatureMap
    , macroExpanderCxtId :: CxtId
      }
-type MacroExpanderCmd = S.State MacroExpander Node
+type MacroExpanderCmd = S.State MacroExpander Macro
 
 {-lambdanode example
   input   : !funcall !lambda foo !add foo 2 3
@@ -93,7 +93,7 @@ signatureDefine nodes = emptySignatureMap
 
 macroExpand :: MacroMap -> SignatureMap -> Node -> Node
 macroExpand mm sm node =
-  S.evalState (macroExpand' node) (MacroExpander mm sm toplevelContext)
+  snd $ S.evalState (macroExpand' node) (MacroExpander mm sm toplevelContext)
 
 macroExpand' :: Node -> MacroExpanderCmd
 macroExpand' node = do
@@ -101,17 +101,16 @@ macroExpand' node = do
              case node of
                (SymNode sym) ->
                  case M.lookup (cxtId, sym) mm of
-                   Just macro -> return $ macroReplace macro node
-                   Nothing -> do
-                     return node
-               (MaccallNode unreplacedNode arg) -> do
-                 macroExpand' unreplacedNode
-               _ -> return node
-macroReplace :: Macro -> Node -> Node
-macroReplace ((param:params), (SymNode sym)) node
+                   Just macro -> return macro
+                   Nothing -> return ([], node)
+               (MaccallNode node arg) -> do
+                 ((param:params), unreplacedNodeA) <- macroExpand' node
+                 return (params, (macroReplace param unreplacedNodeA arg))
+               _ -> return ([], node)
+macroReplace :: P.Identifier -> Node -> Node -> Node
+macroReplace param (SymNode sym) node
              | param == sym = node
              | otherwise = SymNode sym
-macroReplace (macParams, macNode) node = macNode
 
 compile :: MacroMap -> SignatureMap -> [ToplevelNode] -> Inst 
 compile mm sm ((MacCxtTLNode x):xs) = compile mm sm xs
