@@ -131,12 +131,13 @@ parseProgram = do
              return stats
 
 parseMacCxtStat :: Parser ToplevelNode
-parseMacCxtStat = do
+parseMacCxtStat = try $ do
                 string "#macro"
                 requireSpaces
                 cxtDef <- many parseCxtDef
                 skipSpaces
                 string "#end"
+                requireSpaces
                 return $ MacCxtTLNode cxtDef
 
 parseCxtId :: Parser CxtId
@@ -151,7 +152,7 @@ parseCxtId = try parseCxtId'
                                                    oneOf "-"
 
 parseCxtDef :: Parser MacCxtNode
-parseCxtDef = do
+parseCxtDef = try $ do
             string "#context"
             requireSpaces
             cxtId <- parseCxtId
@@ -159,6 +160,7 @@ parseCxtDef = do
             macDef <- many parseMacDef
             requireSpaces
             string "#end"
+            requireSpaces
             return $ CxtDefMNode cxtId macDef
 
 parseMacDef :: Parser CxtDefMNode
@@ -328,4 +330,4 @@ parseVMPrint = try $ do
              return (PrintNode a)
 
 skipSpaces = skipMany (oneOf " \t\n") <?> "skipped spaces"
-requireSpaces = skipMany1 (oneOf " \t\n") <?> "spaces"
+requireSpaces = eof <|> (skipMany1 (oneOf " \t\n")) <?> "spaces"

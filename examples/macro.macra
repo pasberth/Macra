@@ -1,0 +1,6 @@
+#macro
+#context toplevel
+m x = x
+#end
+#end
+m 1
