@@ -14,12 +14,18 @@ main = do
                              Right x -> print x
     "--insts":str:xs ->  case parse "(fname)" str of
                              Left x -> print x
-                             Right x -> print $ compile (macroDefine x) x
+                             Right x -> print $ compile (macroDefine x)
+                                                        (signatureDefine x)
+                                                        x
     "--eval":str:xs ->  case parse "(fname)" str of
                              Left x -> print x
-                             Right x -> vm (compile (macroDefine x) x)
+                             Right x -> vm (compile (macroDefine x)
+                                                    (signatureDefine x)
+                                                    x)
     path:xs -> do
             str <- readFile path
             case parse path str of
                        Left x -> print x
-                       Right x -> vm (compile (macroDefine x) x)
+                       Right x -> vm (compile (macroDefine x)
+                                              (signatureDefine x)
+                                              x)

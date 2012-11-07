@@ -1,6 +1,7 @@
 module Macra.Compiler (MacroMap,
                        compile,
                        macroDefine,
+                       signatureDefine,
                        macroExpand,
                        emptyMacroMap,
                        toplevelContext) where
@@ -28,6 +29,13 @@ data SignatureDefiner = SignatureDefiner {
 type SignatureMap = M.Map P.Identifier Signature
 type Signature = SigList
 
+data MacroExpander = MacroExpander {
+     macroExpanderMacroMap :: MacroMap
+   , macroExpanderSignatureMap :: SignatureMap
+   , macroExpanderCxtId :: CxtId
+     }
+type MacroExpanderCmd = S.State MacroExpander Node
+
 {-lambdanode example
   input   : !funcall !lambda foo !add foo 2 3
   parseed : (FuncallNode (LambdaNode (SymNode 'foo') (AddNode (SymNode 'foo') (NumNode 2))) (NumNode 3)) 
@@ -39,6 +47,9 @@ toplevelContext = "toplevel"
 
 emptyMacroMap :: MacroMap
 emptyMacroMap = M.fromList []
+
+emptySignatureMap :: SignatureMap
+emptySignatureMap = M.fromList []
 
 macroDefine :: [ToplevelNode] -> MacroMap
 macroDefine ((EvalCxtTLNode x):xs) = macroDefine xs
@@ -77,23 +88,35 @@ macroContextDefine' (MacDefMCNode macId params node) = do
   newDefiner <- S.get
   return (macroDefinerMacroMap newDefiner)
 
-macroExpand :: MacroMap -> Signature -> Node -> Node
-macroExpand mm (cxt:sig) (MaccallNode (SymNode a) b) =
-  case M.lookup (cxt, a) mm of
-    Just macroNode -> macroReplace macroNode b
-    -- TODO: Nothing ->
-macroExpand mm _ node = node
+signatureDefine :: [ToplevelNode] -> SignatureMap
+signatureDefine nodes = emptySignatureMap
 
+macroExpand :: MacroMap -> SignatureMap -> Node -> Node
+macroExpand mm sm node =
+  S.evalState (macroExpand' node) (MacroExpander mm sm toplevelContext)
+
+macroExpand' :: Node -> MacroExpanderCmd
+macroExpand' node = do
+             (MacroExpander mm sm cxtId) <-S.get
+             case node of
+               (SymNode sym) ->
+                 case M.lookup (cxtId, sym) mm of
+                   Just macro -> return $ macroReplace macro node
+                   Nothing -> do
+                     return node
+               (MaccallNode unreplacedNode arg) -> do
+                 macroExpand' unreplacedNode
+               _ -> return node
 macroReplace :: Macro -> Node -> Node
 macroReplace ((param:params), (SymNode sym)) node
              | param == sym = node
              | otherwise = SymNode sym
 macroReplace (macParams, macNode) node = macNode
 
-compile :: MacroMap -> [ToplevelNode] -> Inst 
-compile mm ((MacCxtTLNode x):xs) = compile mm xs
-compile mm ((EvalCxtTLNode x):xs) = compileNode (macroExpand mm [toplevelContext] x) (compile mm xs)
-compile mm [] = HaltInst
+compile :: MacroMap -> SignatureMap -> [ToplevelNode] -> Inst 
+compile mm sm ((MacCxtTLNode x):xs) = compile mm sm xs
+compile mm sm ((EvalCxtTLNode x):xs) = compileNode (macroExpand mm sm x) (compile mm sm xs)
+compile mm sm [] = HaltInst
 
 
 compileNode :: Node -> Inst -> Inst

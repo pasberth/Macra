@@ -43,8 +43,26 @@ spec = do
                            ([(SymId "x")], (SymNode (SymId "x")))
                          )
                        ])
-                     [toplevelContext]
+                     (fromList [])
                      (MaccallNode
                        (SymNode (SymId "m"))
                        (SymNode (SymId "a"))) `shouldBe`
                          (SymNode (SymId "a")))
+      it "b" $ do
+        (macroExpand (fromList
+                       [ ( (toplevelContext, (SymId "m")),
+                           ( [(SymId "x"), (SymId "y")],
+                             (MaccallNode
+                               (SymNode (SymId "x"))
+                               (SymNode (SymId "y"))))
+                         )
+                       ])
+                     (fromList [])
+                     (MaccallNode
+                       (MaccallNode
+                         (SymNode (SymId "m"))
+                         (SymNode (SymId "a")))
+                       (SymNode (SymId "b"))) `shouldBe`
+                         (MaccallNode
+                           (SymNode (SymId "a"))
+                           (SymNode (SymId "b"))))
