@@ -9,7 +9,10 @@
   (list
     (concat
        (regexp-opt
-         '( "!if"
+         '( "#macro"
+	    "#context"
+	    "#end"
+	    "!if"
             "!lambda"
             "!define"
             "!return"
