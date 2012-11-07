@@ -93,7 +93,9 @@ signatureDefine nodes = emptySignatureMap
 
 macroExpand :: MacroMap -> SignatureMap -> Node -> Node
 macroExpand mm sm node =
-  snd $ S.evalState (macroExpand' node) (MacroExpander mm sm toplevelContext)
+  case S.evalState (macroExpand' node) (MacroExpander mm sm toplevelContext) of
+    ([], node) -> node
+    (params, node) -> node -- missing to apply
 
 macroExpand' :: Node -> MacroExpanderCmd
 macroExpand' node = do
@@ -104,13 +106,20 @@ macroExpand' node = do
                    Just macro -> return macro
                    Nothing -> return ([], node)
                (MaccallNode node arg) -> do
-                 ((param:params), unreplacedNodeA) <- macroExpand' node
-                 return (params, (macroReplace param unreplacedNodeA arg))
+                 r <- macroExpand' node
+                 case r of
+                   ((param:params), unreplacedNodeA) ->
+                     return (params, (macroReplace param unreplacedNodeA arg))
+                   ([], node) -> return ([], (FuncallNode node arg))
                _ -> return ([], node)
 macroReplace :: P.Identifier -> Node -> Node -> Node
 macroReplace param (SymNode sym) node
              | param == sym = node
              | otherwise = SymNode sym
+macroReplace param (MaccallNode a b) node =
+             MaccallNode (macroReplace param a node)
+                         (macroReplace param b node)
+macroReplace param node _ = node
 
 compile :: MacroMap -> SignatureMap -> [ToplevelNode] -> Inst 
 compile mm sm ((MacCxtTLNode x):xs) = compile mm sm xs
