@@ -133,6 +133,7 @@ macroExpand' (MaccallNode node arg) = do
                      case r' of
                        ([], arg) -> return ([], FuncallNode node arg)
                        (_, arg) -> fail "missing to apply"
+               ([], node) -> return ([], node)
 macroExpand' node = return ([], node)
 
 macroReplace :: P.Identifier -> Node -> Node -> Node
