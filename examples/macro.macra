@@ -3,4 +3,5 @@
 m x = x
 #end
 #end
+m :: number -> any
 m 1

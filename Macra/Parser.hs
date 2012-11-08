@@ -75,7 +75,7 @@ parseMarkAsIdentifer = parseMarkAsIdentifer' <|> parseIdAsIdentifier
                 b <- many containLetter
                 return $ SymId (a:b)
                 -- ruby -e 'puts [*33..47, *58..64, *91..96, *123..126].map(&:chr).join'
-                where beginLetter = oneOf "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+                where beginLetter = oneOf "!\"#$%&'()*+,-./;<=>?@[\\]^_`{|}~"
                       containLetter = beginLetter
 
 
@@ -131,14 +131,42 @@ parseProgram = do
              return stats
 
 parseMacCxtStat :: Parser ToplevelNode
-parseMacCxtStat = try $ do
-                string "#macro"
-                requireSpaces
-                cxtDef <- many parseCxtDef
-                skipSpaces
-                string "#end"
-                requireSpaces
-                return $ MacCxtTLNode cxtDef
+parseMacCxtStat = parseMacDef <|> parseSigDefTL
+                where parseSigDefTL = try $ do
+                                    sigDef <- parseSigDef
+                                    return $ MacCxtTLNode [sigDef]
+                      parseMacDef = try $ do
+                                  string "#macro"
+                                  requireSpaces
+                                  cxtDef <- many parseCxtDef
+                                  skipSpaces
+                                  string "#end"
+                                  requireSpaces
+                                  return $ MacCxtTLNode cxtDef
+
+parseSigDef :: Parser MacCxtNode
+parseSigDef = try $ do
+            fn <- parseIdAsIdentifier
+            requireSpaces
+            string "::"
+            requireSpaces
+            sig <- parseSigList
+            skipSpaces
+            return $ SigDefMNode fn sig
+
+parseSigList :: Parser SigList
+parseSigList = fnType <|> primType <?> "signature"
+             where primType = try $ do
+                            cxtId <- parseCxtId
+                            return [cxtId]
+                   fnType = try $ do
+                          cxtId <- parseCxtId
+                          requireSpaces
+                          string "->"
+                          requireSpaces
+                          lst <- parseSigList
+                          skipSpaces
+                          return (cxtId:lst)
 
 parseCxtId :: Parser CxtId
 parseCxtId = try parseCxtId'
@@ -179,7 +207,7 @@ parseMacDefIdAndParams = do
                        return (id, params)
 
 parseEvalCxtStat :: Parser ToplevelNode
-parseEvalCxtStat = do
+parseEvalCxtStat = try $ do
                  expr <- parseMaccall
                  skipSpaces
                  do { string ";"; return () } <|> do { eof; return () }
