@@ -1,2 +1,2 @@
-!define blackhole !lambda x blackhole
+!define blackhole !lambda x blackhole;
 !print $ blackhole 1 2 3 4
