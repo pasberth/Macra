@@ -70,6 +70,7 @@ macroDefineMacCxtNode' (CxtDefMNode cxtId (cxtDefs)) = do
   definer <- S.get
   S.put definer { macroDefinerContext = cxtId }
   macroContextDefine cxtDefs
+macroDefineMacCxtNode' _ = return emptyMacroMap
 
 macroContextDefine :: [CxtDefMNode] -> MacroDefinerCmd
 macroContextDefine (x:xs) = macroContextDefine' x >> macroContextDefine xs
