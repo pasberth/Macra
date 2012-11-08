@@ -44,13 +44,12 @@ instance Show VM where
   show (VM a x envRef r s envMem) = concat ["A: ", show a, "\n",
                                             "X: ", show x, "\n",
                                             "E: ", (case M.lookup envRef envMem of
-                                                     Just e -> show e
+                                                     Just (e, p) -> show e
                                                      Nothing -> "Environment Reference Error"), "\n",
                                             "R: ", show r, "\n",
                                             "S: ", "TODO", "\n"]
 
-
-type Env = M.Map Identifier Value
+type Env = ((M.Map Identifier Value), EnvRef)
 type Rib = [Value]
 type Stack = [(Inst, EnvRef, Rib)]
 type VMCommand = S.StateT VM IO ()
@@ -58,11 +57,21 @@ type VMCommand = S.StateT VM IO ()
 type EnvRef = U.Unique
 type EnvMem = M.Map EnvRef Env
 
+lookupVal :: Identifier -> EnvRef -> EnvMem -> Maybe Value
+lookupVal id envRef mem =
+  case M.lookup envRef mem of
+    Nothing -> Nothing
+    Just (e, parentEnvRef) ->
+      case M.lookup id e of
+         Just val -> Just val
+         Nothing -> lookupVal id parentEnvRef mem
+
 nil :: Value
 nil = List []
 
 vm :: Inst -> IO ()
 vm inst = do
+        dummyParentEnvRef <- U.newUnique
         envRef <- U.newUnique
         S.evalStateT vm' VM {
                          vmAcc = nil
@@ -70,7 +79,9 @@ vm inst = do
                        , vmEnvRef = envRef
                        , vmRib = []
                        , vmStack = []
-                       , vmEnvMem = M.fromList [(envRef, M.fromList [])]
+                       , vmEnvMem = M.fromList [ ( envRef
+                                                 , ((M.fromList []), dummyParentEnvRef)
+                                                 ) ]
                          }
 
 vm' :: VMCommand
@@ -92,24 +103,25 @@ vm' = do
             }
       vm'
     VM a (ReferInst id nxt) envRef r s envMem -> do
-      case M.lookup envRef envMem of
-        Just e -> do
-          case M.lookup id e of
-            Just v -> do
-              S.put vmState {
-                    vmAcc = v
-                  , vmInst = nxt
-                    }
-              vm'
-            Nothing -> do
-              S.liftIO $ do
-                putStr $ concat ["unbound variable: `", show id, "'"]
-              return ()
+      case lookupVal id envRef envMem of
+        Just v -> do
+          S.put vmState {
+                vmAcc = v
+              , vmInst = nxt
+                }
+          vm'
+        Nothing -> do
+          S.liftIO $ do
+            putStr $ concat ["unbound variable: `", show id, "'"]
+          return ()
     VM a (DefineInst id nxt) envRef r s mem -> do
       case M.lookup envRef mem of
-        Just e -> do
+        -- TODO: Nothing ->
+        Just (e, parentEnvRef) -> do
           S.put vmState {
-                vmEnvMem = M.insert envRef (M.insert id a e) mem
+                vmEnvMem = M.insert envRef
+                                    ((M.insert id a e), parentEnvRef)
+                                    mem
               , vmInst = nxt
                 }
           vm'
@@ -130,18 +142,14 @@ vm' = do
       case a of
         (Closure (Sym var) body envRef) -> do
           closedEnvRef <- S.lift U.newUnique
-          case M.lookup envRef mem of
-            Just e -> do
-              S.put vmState {
-                    vmEnvRef = closedEnvRef
-                  , vmEnvMem = (M.insert closedEnvRef
-                                         (M.insert (Sym var) val e)
-                                         mem)
-                  , vmInst = body
-                    }
-              vm'
-            Nothing -> do
-              return ()
+          S.put vmState {
+                vmEnvRef = closedEnvRef
+              , vmEnvMem = (M.insert closedEnvRef
+                                     ((M.fromList [ ((Sym var), val) ]), envRef)
+                                     mem)
+              , vmInst = body
+                }
+          vm'
         (Closure Nil body envRef) -> do
           S.put vmState {
                 vmEnvRef = envRef
