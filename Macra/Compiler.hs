@@ -99,7 +99,7 @@ macroExpand mm sm node =
 
 macroExpand' :: Node -> MacroExpanderCmd
 macroExpand' (SymNode sym) = do
-             (MacroExpander mm sm cxtId) <-S.get
+             (MacroExpander mm sm cxtId) <- S.get
              case M.lookup (cxtId, sym) mm of
                   Just macro -> return macro
                   Nothing -> return ([], (SymNode sym))
