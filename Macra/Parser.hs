@@ -201,10 +201,28 @@ parseMacDef = do
             return $ MacDefMCNode id params defi
 
 parseMacDefIdAndParams :: Parser (Identifier, MacParams)
-parseMacDefIdAndParams = do
-                       id <- parseIdAsIdentifier
-                       params <- many (try $ requireSpaces >> parseIdAsIdentifier)
-                       return (id, params)
+parseMacDefIdAndParams = infixOp <|> prefixOp
+                       where infixOp = try $ do
+                                   param1 <- parseIdAsIdentifier
+                                   skipSpaces
+                                   id <- (try $ string ":" >>
+                                                parseMarkAsIdentifer)
+                                         <|> (try $ do
+                                                  sym <- string "=>"
+                                                  return $ SymId sym)
+                                         <|> (try $ do
+                                                  sym <- (string ",")
+                                                  return $ SymId sym)
+                                   skipSpaces
+                                   param2 <- parseIdAsIdentifier
+                                   params <- many (try $ requireSpaces >>
+                                                         parseIdAsIdentifier)
+                                   return (id, (param1:param2:params))
+                             prefixOp = try $ do
+                                    id <- parseIdAsIdentifier
+                                    params <- many (try $ requireSpaces >>
+                                                          parseIdAsIdentifier)
+                                    return (id, params)
 
 parseEvalCxtStat :: Parser ToplevelNode
 parseEvalCxtStat = try $ do
