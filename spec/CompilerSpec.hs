@@ -90,4 +90,6 @@ spec = do
                            (SymNode (SymId "=>"))
                            (SymNode (SymId "x")))
                          (SymNode (SymId "x")))) `shouldBe`
-                         (SymNode (SymId "yyy")))
+                         (FuncallNode
+                           (SymNode (SymId "map"))
+                           (SymNode (SymId "yyy"))))

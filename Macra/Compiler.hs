@@ -32,7 +32,7 @@ type Signature = SigList
 data MacroExpander = MacroExpander {
      macroExpanderMacroMap :: MacroMap
    , macroExpanderSignatureMap :: SignatureMap
-   , macroExpanderCxtId :: CxtId
+   , macroExpanderSignature :: Signature
      }
 type MacroExpanderCmd = S.State MacroExpander Macro
 
@@ -93,25 +93,33 @@ signatureDefine nodes = emptySignatureMap
 
 macroExpand :: MacroMap -> SignatureMap -> Node -> Node
 macroExpand mm sm node =
-  case S.evalState (macroExpand' node) (MacroExpander mm sm toplevelContext) of
+  case S.evalState (macroExpand' node) (MacroExpander mm sm [toplevelContext]) of
     ([], node) -> node
     (params, node) -> node -- missing to apply
 
 macroExpand' :: Node -> MacroExpanderCmd
 macroExpand' (SymNode sym) = do
-             (MacroExpander mm sm cxtId) <- S.get
+             (MacroExpander mm sm (cxtId:sig)) <- S.get
              case M.lookup (cxtId, sym) mm of
                   Just macro -> return macro
                   Nothing -> return ([], (SymNode sym))
 macroExpand' (MaccallNode node arg) = do
+             (MacroExpander mm sm sig) <- S.get
              r <- macroExpand' node
              case r of
                ((param:params), unreplacedNodeA) ->
                  return (params, (macroReplace param
                                                unreplacedNodeA
                                                arg))
-               ([], node) ->
-                 return ([], (FuncallNode node arg))
+               ([], (SymNode sym)) -> do
+                 case M.lookup sym sm of
+                   Just sig' -> do
+                     S.put (MacroExpander mm sm sig')
+                     r' <- macroExpand' arg
+                     S.put (MacroExpander mm sm sig)
+                     case r' of
+                       ([], arg) -> return ([], FuncallNode node arg)
+                       (_, arg) -> fail "missing to apply"
 macroExpand' node = return ([], node)
 
 macroReplace :: P.Identifier -> Node -> Node -> Node
