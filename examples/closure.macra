@@ -1,0 +1,4 @@
+!define f !lambda x !lambda y a;
+!define g $ f 1;
+!define a 100;
+!print $ g 2
