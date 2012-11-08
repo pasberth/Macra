@@ -90,7 +90,19 @@ macroContextDefine' (MacDefMCNode macId params node) = do
   return (macroDefinerMacroMap newDefiner)
 
 signatureDefine :: [ToplevelNode] -> SignatureMap
-signatureDefine nodes = emptySignatureMap
+signatureDefine ((EvalCxtTLNode x):xs) = signatureDefine xs
+signatureDefine ((MacCxtTLNode x):xs) =  signatureDefineMacCxtNodes (signatureDefine xs) x
+signatureDefine [] = emptySignatureMap
+
+signatureDefineMacCxtNodes :: SignatureMap -> [MacCxtNode] -> SignatureMap
+signatureDefineMacCxtNodes sm (node:nodes) = signatureDefineMacCxtNodes
+                                           (signatureDefineMacCxtNode sm node)
+                                           nodes
+signatureDefineMacCxtNodes sm [] = sm
+
+signatureDefineMacCxtNode :: SignatureMap -> MacCxtNode -> SignatureMap
+signatureDefineMacCxtNode sm (SigDefMNode id sig) = M.insert id sig sm
+signatureDefineMacCxtNode sm _ = sm
 
 macroExpand :: MacroMap -> SignatureMap -> Node -> Node
 macroExpand mm sm node =
