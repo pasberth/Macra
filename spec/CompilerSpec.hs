@@ -66,3 +66,28 @@ spec = do
                          (MaccallNode
                            (SymNode (SymId "a"))
                            (SymNode (SymId "b"))))
+
+      it "b" $ do
+        (macroExpand (fromList
+                       [ ( (toplevelContext, (SymId "=>"))
+                         , ( [(SymId "a"), (SymId "b")]
+                           , (SymNode (SymId "xxx"))))
+                       , ( ("function", (SymId "=>"))
+                         , ( [(SymId "a"), (SymId "b")]
+                           , (SymNode (SymId "yyy"))))
+                       ])
+                     -- map :: function -> expression
+                     (fromList
+                       [ ( (SymId "map")
+                         , ["function", "expression"])
+                       ])
+
+                     -- map x => x
+                     (MaccallNode
+                       (SymNode (SymId "map"))
+                       (MaccallNode
+                         (MaccallNode
+                           (SymNode (SymId "=>"))
+                           (SymNode (SymId "x")))
+                         (SymNode (SymId "x")))) `shouldBe`
+                         (SymNode (SymId "yyy")))

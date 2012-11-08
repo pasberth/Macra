@@ -109,9 +109,13 @@ macroExpand' node = do
                  r <- macroExpand' node
                  case r of
                    ((param:params), unreplacedNodeA) ->
-                     return (params, (macroReplace param unreplacedNodeA arg))
-                   ([], node) -> return ([], (FuncallNode node arg))
+                     return (params, (macroReplace param
+                                                   unreplacedNodeA
+                                                   arg))
+                   ([], node) ->
+                     return ([], (FuncallNode node arg))
                _ -> return ([], node)
+
 macroReplace :: P.Identifier -> Node -> Node -> Node
 macroReplace param (SymNode sym) node
              | param == sym = node
