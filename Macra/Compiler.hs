@@ -98,23 +98,21 @@ macroExpand mm sm node =
     (params, node) -> node -- missing to apply
 
 macroExpand' :: Node -> MacroExpanderCmd
-macroExpand' node = do
+macroExpand' (SymNode sym) = do
              (MacroExpander mm sm cxtId) <-S.get
-             case node of
-               (SymNode sym) ->
-                 case M.lookup (cxtId, sym) mm of
-                   Just macro -> return macro
-                   Nothing -> return ([], node)
-               (MaccallNode node arg) -> do
-                 r <- macroExpand' node
-                 case r of
-                   ((param:params), unreplacedNodeA) ->
-                     return (params, (macroReplace param
-                                                   unreplacedNodeA
-                                                   arg))
-                   ([], node) ->
-                     return ([], (FuncallNode node arg))
-               _ -> return ([], node)
+             case M.lookup (cxtId, sym) mm of
+                  Just macro -> return macro
+                  Nothing -> return ([], (SymNode sym))
+macroExpand' (MaccallNode node arg) = do
+             r <- macroExpand' node
+             case r of
+               ((param:params), unreplacedNodeA) ->
+                 return (params, (macroReplace param
+                                               unreplacedNodeA
+                                               arg))
+               ([], node) ->
+                 return ([], (FuncallNode node arg))
+macroExpand' node = return ([], node)
 
 macroReplace :: P.Identifier -> Node -> Node -> Node
 macroReplace param (SymNode sym) node
