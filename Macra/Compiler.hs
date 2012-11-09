@@ -143,27 +143,17 @@ macroExpand' (MaccallNode node arg) = do
                           Nothing -> []
                           Just sig' -> sig'
                ([], (LambdaNode param body)) -> do
-                 S.put (MacroExpander mm sm [toplevelContext])
-                 r' <- macroExpand' body
-                 S.put (MacroExpander mm sm sig)
-                 case r' of
-                   ([], arg) -> return ([], LambdaNode param arg)
-                   (_, arg) -> fail "missing to apply"
-
+                 case macroArgExpand mm sm [toplevelContext] body of
+                   Right arg -> return ([], LambdaNode param arg)
+                   l@(Left err) -> fail "missing to apply"
                ([], (DefineNode id expr)) -> do
-                 S.put (MacroExpander mm sm [toplevelContext])
-                 r' <- macroExpand' expr
-                 S.put (MacroExpander mm sm sig)
-                 case r' of
-                   ([], arg) -> return ([], DefineNode id arg)
-                   (_, arg) -> fail "missing to apply"
+                 case macroArgExpand mm sm [toplevelContext] node of
+                   Right arg -> return ([], DefineNode id arg)
+                   l@(Left err) -> fail "missing to apply"
                ([], (PrintNode node)) -> do
-                 S.put (MacroExpander mm sm [toplevelContext])
-                 r' <- macroExpand' node
-                 S.put (MacroExpander mm sm sig)
-                 case r' of
-                   ([], arg) -> return ([], PrintNode arg)
-                   (_, arg) -> fail "missing to apply"
+                 case macroArgExpand mm sm [toplevelContext] node of
+                   Right arg -> return ([], PrintNode arg)
+                   l@(Left err) -> fail "missing to apply"
                ([], node) -> return ([], node)
 macroExpand' (LambdaNode param body) = do
              -- TODO: this is buggy.
