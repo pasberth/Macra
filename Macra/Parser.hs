@@ -129,6 +129,8 @@ parseMacCxtStat :: Parser ToplevelNode
 parseMacCxtStat = parseMacDefTL
                 where parseMacDefTL = try $ do
                                   macDef <- parseMacDef
+                                  do { string ";"; return () } <|> do { eof; return () }
+                                  skipSpaces
                                   return $ MacCxtTLNode macDef
 
 parseMacSig :: Parser MacSig
@@ -142,7 +144,6 @@ parseMacSig = fnType <|> primType <?> "signature"
                           string "->"
                           requireSpaces
                           lst <- parseMacSig
-                          skipSpaces
                           return (cxtId:lst)
 
 parseCxtId :: Parser CxtId
@@ -173,6 +174,7 @@ parseMacDef = parseMacDef2 <|> parseMacDef1 <?> "macro defination"
                                sig <- parseMacSig
                                requireSpaces
                                string "="
+                               requireSpaces
                                defi <- parseMaccall
                                return $ MacDef1MNode id sig params defi
 
