@@ -35,13 +35,18 @@ main = do
       str <- readFile fname
       case parse fname str of
            Left x -> print x
-           Right x -> vm (compile (macroDefine x)
-                                  (signatureDefine x)
-                                  x)
+           Right x -> 
+             case (compile (macroDefine x)
+                           (signatureDefine x)
+                           x) of
+               Right inst -> vm inst
+               Left err -> print err
     path:xs -> do
             str <- readFile path
             case parse path str of
                        Left x -> print x
-                       Right x -> vm (compile (macroDefine x)
-                                              (signatureDefine x)
-                                              x)
+                       Right x -> case (compile (macroDefine x)
+                                                (signatureDefine x)
+                                                x) of
+                                    Right inst -> vm inst
+                                    Left err -> print err

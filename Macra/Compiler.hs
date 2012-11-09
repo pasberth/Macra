@@ -36,6 +36,9 @@ data MacroExpander = MacroExpander {
      }
 type MacroExpanderCmd = S.State MacroExpander Macro
 
+data CompileError = CompileError deriving (Show)
+data ExpandError = ExpandError deriving (Show)
+
 {-lambdanode example
   input   : !funcall !lambda foo !add foo 2 3
   parseed : (FuncallNode (LambdaNode (SymNode 'foo') (AddNode (SymNode 'foo') (NumNode 2))) (NumNode 3)) 
@@ -104,11 +107,11 @@ signatureDefineMacCxtNode :: SignatureMap -> MacCxtNode -> SignatureMap
 signatureDefineMacCxtNode sm (SigDefMNode id sig) = M.insert id sig sm
 signatureDefineMacCxtNode sm _ = sm
 
-macroExpand :: MacroMap -> SignatureMap -> Node -> Node
+macroExpand :: MacroMap -> SignatureMap -> Node -> Either ExpandError Node
 macroExpand mm sm node =
   case S.evalState (macroExpand' node) (MacroExpander mm sm [toplevelContext]) of
-    ([], node) -> node
-    (params, node) -> node -- missing to apply
+    ([], node) -> Right node
+    (params, node) -> Left ExpandError
 
 macroExpand' :: Node -> MacroExpanderCmd
 macroExpand' (SymNode sym) = do
@@ -174,6 +177,17 @@ macroExpand' (PrintNode node) = do
              return ([], PrintNode node)
 macroExpand' node = return ([], node)
 
+macroArgExpand :: MacroMap -> SignatureMap -> Signature -> Node -> Either ExpandError Node
+macroArgExpand mm sm sig node =
+    case S.evalState (macroExpand' node) (MacroExpander mm sm sig) of
+      ([], node) -> Right node
+      (params, node) -> Left $ ExpandError
+      --concat [ "macro applying missing: "
+      --                                , show params
+      --                                , "was not applied."
+      --                                ]
+
+
 macroReplace :: P.Identifier -> Node -> Node -> Node
 macroReplace param (SymNode sym) node
              | param == sym = node
@@ -183,10 +197,16 @@ macroReplace param (MaccallNode a b) node =
                          (macroReplace param b node)
 macroReplace param node _ = node
 
-compile :: MacroMap -> SignatureMap -> [ToplevelNode] -> Inst 
+compile :: MacroMap -> SignatureMap -> [ToplevelNode] -> Either CompileError Inst 
 compile mm sm ((MacCxtTLNode x):xs) = compile mm sm xs
-compile mm sm ((EvalCxtTLNode x):xs) = compileNode (macroExpand mm sm x) (compile mm sm xs)
-compile mm sm [] = HaltInst
+compile mm sm ((EvalCxtTLNode x):xs) =
+        case  (macroExpand mm sm x) of
+          Right node ->
+            case (compile mm sm xs) of
+              Right insts -> Right $ compileNode node insts
+              l@(Left err) -> l
+          Left err -> Left $ CompileError
+compile mm sm [] = Right HaltInst
 
 
 compileNode :: Node -> Inst -> Inst
