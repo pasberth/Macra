@@ -2,7 +2,6 @@
 module Macra.Parser (Identifier(..),
                      ToplevelNode(..),
                      MacCxtNode(..),
-                     CxtDefMNode(..),
                      Node(..),
                      SigList,
                      CxtId,
@@ -14,16 +13,13 @@ import Text.ParserCombinators.Parsec hiding (parse)
 
 data Identifier = SymId String | NilId deriving (Show, Eq, Ord)
 
-data ToplevelNode = MacCxtTLNode [MacCxtNode]
+data ToplevelNode = MacCxtTLNode MacCxtNode
                   | EvalCxtTLNode Node
                   deriving (Show, Eq)
 
-data MacCxtNode = CxtDefMNode CxtId [CxtDefMNode]
+data MacCxtNode = MacDefMCNode Identifier MacParams Node
                 | SigDefMNode Identifier SigList
                 deriving (Show, Eq)
-
-data CxtDefMNode = MacDefMCNode Identifier MacParams Node
-                 deriving (Show, Eq)
 
 type SigList = [CxtId]
 type CxtId = String
@@ -131,18 +127,13 @@ parseProgram = do
              return stats
 
 parseMacCxtStat :: Parser ToplevelNode
-parseMacCxtStat = parseMacDef <|> parseSigDefTL
+parseMacCxtStat = parseMacDefTL <|> parseSigDefTL
                 where parseSigDefTL = try $ do
                                     sigDef <- parseSigDef
-                                    return $ MacCxtTLNode [sigDef]
-                      parseMacDef = try $ do
-                                  string "#macro"
-                                  requireSpaces
-                                  cxtDef <- many parseCxtDef
-                                  skipSpaces
-                                  string "#end"
-                                  requireSpaces
-                                  return $ MacCxtTLNode cxtDef
+                                    return $ MacCxtTLNode sigDef
+                      parseMacDefTL = try $ do
+                                  macDef <- parseMacDef
+                                  return $ MacCxtTLNode macDef
 
 parseSigDef :: Parser MacCxtNode
 parseSigDef = try $ do
@@ -151,7 +142,6 @@ parseSigDef = try $ do
             string "::"
             requireSpaces
             sig <- parseSigList
-            skipSpaces
             return $ SigDefMNode fn sig
 
 parseSigList :: Parser SigList
@@ -179,22 +169,7 @@ parseCxtId = try parseCxtId'
                                                    oneOf "0123456789" <|>
                                                    oneOf "-"
 
-parseCxtDef :: Parser MacCxtNode
-parseCxtDef = try $ do
-            string "#context"
-            requireSpaces
-            cxtId <- parseCxtId
-            macDef <- many $ try $ do { skipSpaces
-                                      ; m <- parseMacDef
-                                      ; string ";"
-                                      ; return m
-                                      }
-            requireSpaces
-            string "#end"
-            requireSpaces
-            return $ CxtDefMNode cxtId macDef
-
-parseMacDef :: Parser CxtDefMNode
+parseMacDef :: Parser MacCxtNode
 parseMacDef = try $ do
             (id, params) <- parseMacDefIdAndParams
             skipSpaces
