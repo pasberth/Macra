@@ -112,10 +112,15 @@ macroExpand mm sm node =
 
 macroExpand' :: Node -> MacroExpanderCmd
 macroExpand' (SymNode sym) = do
-             (MacroExpander mm sm (cxtId:sig)) <- S.get
-             case M.lookup (cxtId, sym) mm of
+             expander@(MacroExpander mm sm sig) <- S.get
+             case M.lookup (cxtId sig, sym) mm of
                   Just macro -> return macro
                   Nothing -> return ([], (SymNode sym))
+             where cxtId sig = case sig of
+                                    [] -> toplevelContext
+                                    (cxtId:sig) -> cxtId
+
+
 macroExpand' (MaccallNode node arg) = do
              (MacroExpander mm sm sig) <- S.get
              r <- macroExpand' node
@@ -125,16 +130,48 @@ macroExpand' (MaccallNode node arg) = do
                                                unreplacedNodeA
                                                arg))
                ([], (SymNode sym)) -> do
-                 case M.lookup sym sm of
-                   Just sig' -> do
-                     S.put (MacroExpander mm sm sig')
-                     r' <- macroExpand' arg
-                     S.put (MacroExpander mm sm sig)
-                     case r' of
-                       ([], arg) -> return ([], FuncallNode node arg)
-                       (_, arg) -> fail "missing to apply"
+                 S.put (MacroExpander mm sm sig')
+                 r' <- macroExpand' arg
+                 S.put (MacroExpander mm sm sig)
+                 case r' of
+                   ([], arg) -> return ([], FuncallNode node arg)
+                   (_, arg) -> fail "missing to apply"
+                 where sig' = case M.lookup sym sm of
+                          Nothing -> []
+                          Just sig' -> sig'
+               ([], (LambdaNode param body)) -> do
+                 S.put (MacroExpander mm sm [toplevelContext])
+                 r' <- macroExpand' body
+                 S.put (MacroExpander mm sm sig)
+                 case r' of
+                   ([], arg) -> return ([], LambdaNode param arg)
+                   (_, arg) -> fail "missing to apply"
+
+               ([], (DefineNode id expr)) -> do
+                 S.put (MacroExpander mm sm [toplevelContext])
+                 r' <- macroExpand' expr
+                 S.put (MacroExpander mm sm sig)
+                 case r' of
+                   ([], arg) -> return ([], DefineNode id arg)
+                   (_, arg) -> fail "missing to apply"
+               ([], (PrintNode node)) -> do
+                 S.put (MacroExpander mm sm [toplevelContext])
+                 r' <- macroExpand' node
+                 S.put (MacroExpander mm sm sig)
+                 case r' of
+                   ([], arg) -> return ([], PrintNode arg)
+                   (_, arg) -> fail "missing to apply"
                ([], node) -> return ([], node)
-macroExpand' node = return ([], node)
+macroExpand' (LambdaNode param body) = do
+             ([], body) <- macroExpand' body
+             return ([], LambdaNode param body)
+macroExpand' (DefineNode id expr) = do
+             ([], expr) <- macroExpand' expr
+             return ([], DefineNode id expr)
+macroExpand' (PrintNode node) = do
+             ([], node) <- macroExpand' node
+             return ([], PrintNode node)
+--macroExpand' node = return ([], node)
 
 macroReplace :: P.Identifier -> Node -> Node -> Node
 macroReplace param (SymNode sym) node
