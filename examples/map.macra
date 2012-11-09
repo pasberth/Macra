@@ -1,9 +1,8 @@
-#macro
-#context function
-a => b = !lambda a b;
-a, b = !lambda a b;
-#end
-#end
+a => b : expr -> expr -> function
+       = !lambda a b;
 
-map :: function -> list -> list
+a, b : expr -> function -> function
+     = !lambda a b;
+
+map :: function -> list -> list;
 map x => !print x
