@@ -1,0 +1,16 @@
+#macro
+
+#context foo
+bar = 1
+#end
+
+#context hoge
+fuga = 2
+#end
+
+#end
+
+f :: foo -> hoge -> expr
+!define f !lambda x !lambda y 3;
+!print $ f bar fuga;
+!print $ f fuga bar;
