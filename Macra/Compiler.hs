@@ -128,20 +128,21 @@ macroExpand' (MaccallNode node arg) = do
              (MacroExpander mm sm sig) <- S.get
              r <- macroExpand' node
              case r of
-               ((param:params), unreplacedNodeA) ->
+               ((param:params), curriedMacro) ->
                  return (params, (macroReplace param
-                                               unreplacedNodeA
+                                               curriedMacro
                                                arg))
-               ([], (SymNode sym)) -> do
-                 S.put (MacroExpander mm sm sig')
-                 r' <- macroExpand' arg
-                 S.put (MacroExpander mm sm sig)
-                 case r' of
-                   ([], arg) -> return ([], FuncallNode node arg)
-                   (_, arg) -> fail "missing to apply"
+               ([], SymNode sym) -> do
+                 case macroArgExpand mm sm sig' arg of
+                   Right arg -> return ([], FuncallNode (SymNode sym) arg)
+                   Left err -> fail "missing to apply"
                  where sig' = case M.lookup sym sm of
-                          Nothing -> []
-                          Just sig' -> sig'
+                                   Nothing -> [toplevelContext]
+                                   Just sig' -> sig'
+               ([], FuncallNode fn arg) -> do
+                 case macroArgExpand mm sm (tail sig) arg of
+                   Right arg -> return ([], FuncallNode fn arg)
+                   Left err -> fail "missing to apply"
                ([], (LambdaNode param body)) -> do
                  case macroArgExpand mm sm [toplevelContext] body of
                    Right arg -> return ([], LambdaNode param arg)

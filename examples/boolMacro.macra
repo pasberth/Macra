@@ -1,0 +1,14 @@
+#macro
+#context bool
+true = 1
+#end
+#end
+
+f :: bool -> expr
+!define f !lambda x x;
+
+g :: expr -> expr
+!define g !lambda x y;
+
+!print $ f true;
+!print $ g true;
