@@ -190,7 +190,19 @@ macroReplace param (SymNode sym) node
 macroReplace param (MaccallNode a b) node =
              MaccallNode (macroReplace param a node)
                          (macroReplace param b node)
+macroReplace param (LambdaNode var body) node =
+             LambdaNode (macroReplaceSym param var node)
+                        (macroReplace param body node)
 macroReplace param node _ = node
+
+macroReplaceSym :: P.Identifier -> P.Identifier -> Node -> P.Identifier
+macroReplaceSym param id (SymNode sym)
+                | param == id = sym
+                | otherwise = id
+-- m a b = !lambda a b
+-- m (f a) b
+-- ===> !lambda (f a) b
+macroReplaceSym param id _ = id
 
 compile :: MacroMap -> SignatureMap -> [ToplevelNode] -> Either CompileError Inst 
 compile mm sm ((MacCxtTLNode x):xs) = compile mm sm xs
