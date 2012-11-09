@@ -163,6 +163,7 @@ macroExpand' (MaccallNode node arg) = do
                    (_, arg) -> fail "missing to apply"
                ([], node) -> return ([], node)
 macroExpand' (LambdaNode param body) = do
+             -- TODO: this is buggy.
              ([], body) <- macroExpand' body
              return ([], LambdaNode param body)
 macroExpand' (DefineNode id expr) = do
@@ -171,7 +172,7 @@ macroExpand' (DefineNode id expr) = do
 macroExpand' (PrintNode node) = do
              ([], node) <- macroExpand' node
              return ([], PrintNode node)
---macroExpand' node = return ([], node)
+macroExpand' node = return ([], node)
 
 macroReplace :: P.Identifier -> Node -> Node -> Node
 macroReplace param (SymNode sym) node

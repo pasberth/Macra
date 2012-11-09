@@ -85,24 +85,23 @@ vm inst = do
                          }
 
 vm' :: VMCommand
-vm' = do
-  vmState <- S.get
-  case vmState of
-    VM a HaltInst e r s _ -> do
-      return ()
-    VM a (ConstExpr val nxt) e r s _ -> do
+vm' = S.get >>= vm''
+
+vm'' ::  VM -> VMCommand
+vm'' (VM a HaltInst e r s _) = return ()
+vm'' vmState@(VM a (ConstExpr val nxt) e r s _) = do
       S.put vmState {
             vmAcc = val
           , vmInst = nxt
             }
       vm'
-    VM a (PrintInst nxt) e r s _ -> do
+vm'' vmState@(VM a (PrintInst nxt) e r s _) = do
       S.liftIO $ print a
       S.put vmState {
             vmInst = nxt
             }
       vm'
-    VM a (ReferInst id nxt) envRef r s envMem -> do
+vm'' vmState@(VM a (ReferInst id nxt) envRef r s envMem) = do
       case lookupVal id envRef envMem of
         Just v -> do
           S.put vmState {
@@ -114,7 +113,7 @@ vm' = do
           S.liftIO $ do
             putStr $ concat ["unbound variable: `", show id, "'"]
           return ()
-    VM a (DefineInst id nxt) envRef r s mem -> do
+vm'' vmState@(VM a (DefineInst id nxt) envRef r s mem) = do
       case M.lookup envRef mem of
         -- TODO: Nothing ->
         Just (e, parentEnvRef) -> do
@@ -126,19 +125,19 @@ vm' = do
                 }
           vm'
           return ()
-    VM a (FrameInst ret nxt) envRef r s _ -> do
+vm'' vmState@(VM a (FrameInst ret nxt) envRef r s _) = do
       S.put vmState {
             vmStack = (ret, envRef, r):s
           , vmInst = nxt
             }
       vm'
-    VM a (ArgInst nxt) e r s _ -> do
+vm'' vmState@(VM a (ArgInst nxt) e r s _) = do
       S.put vmState {
             vmRib = a:r
           , vmInst = nxt
             }
       vm'
-    VM a ApplyInst _ (val:r) s mem -> do
+vm'' vmState@(VM a ApplyInst _ (val:r) s mem) = do
       case a of
         (Closure (Sym var) body envRef) -> do
           closedEnvRef <- S.lift U.newUnique
@@ -160,7 +159,7 @@ vm' = do
           S.liftIO $ do
             putStr $ concat ["invalid application: ", show a]
           return ()
-    VM a ReturnInst _ _ ((ret, envRef, r):s) _ -> do
+vm'' vmState@(VM a ReturnInst _ _ ((ret, envRef, r):s) _) = do
         S.put vmState {
               vmInst = ret
             , vmEnvRef = envRef
@@ -168,17 +167,17 @@ vm' = do
             , vmStack = s
               }
         vm'
-    VM a ReturnInst e r [] _ -> do
+vm'' vmState@(VM a ReturnInst e r [] _) = do
       S.liftIO $ do
         putStr $ concat ["stack is empty"]
       return ()
-    VM a (CloseInst var body nxt) envRef r s mem -> do
+vm'' vmState@(VM a (CloseInst var body nxt) envRef r s mem) = do
         S.put vmState {
               vmAcc = Closure var body envRef
             , vmInst = nxt
               }
         vm'
-    _ -> do
+vm'' vmState = do
      S.liftIO $ do
        print "** VM BUG **: "
        print vmState
