@@ -184,15 +184,18 @@ parseCxtDef = try $ do
             string "#context"
             requireSpaces
             cxtId <- parseCxtId
-            requireSpaces
-            macDef <- many parseMacDef
+            macDef <- many $ try $ do { skipSpaces
+                                      ; m <- parseMacDef
+                                      ; string ";"
+                                      ; return m
+                                      }
             requireSpaces
             string "#end"
             requireSpaces
             return $ CxtDefMNode cxtId macDef
 
 parseMacDef :: Parser CxtDefMNode
-parseMacDef = do
+parseMacDef = try $ do
             (id, params) <- parseMacDefIdAndParams
             skipSpaces
             string "="

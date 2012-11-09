@@ -1,6 +1,7 @@
 #macro
 #context bool
-true = 1
+true = 1;
+false = 2;
 #end
 #end
 
@@ -11,4 +12,5 @@ g :: expr -> expr
 !define g !lambda x y;
 
 !print $ f true;
+!print $ f false;
 !print $ g true;
