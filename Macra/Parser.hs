@@ -1,10 +1,9 @@
-
 module Macra.Parser (Identifier(..),
                      ToplevelNode(..),
                      MacCxtNode(..),
                      Node(..),
-                     SigList,
                      CxtId,
+                     MacSig,
                      MacParams,
                      parse) where
 
@@ -17,12 +16,12 @@ data ToplevelNode = MacCxtTLNode MacCxtNode
                   | EvalCxtTLNode Node
                   deriving (Show, Eq)
 
-data MacCxtNode = MacDefMCNode Identifier MacParams Node
-                | SigDefMNode Identifier SigList
+data MacCxtNode = MacDef1MNode Identifier MacSig MacParams Node
+                | MacDef2MNode Identifier MacSig MacParams
                 deriving (Show, Eq)
 
-type SigList = [CxtId]
 type CxtId = String
+type MacSig = [CxtId]
 type MacParams = [Identifier]
 
 data Node = SymNode Identifier
@@ -127,25 +126,13 @@ parseProgram = do
              return stats
 
 parseMacCxtStat :: Parser ToplevelNode
-parseMacCxtStat = parseMacDefTL <|> parseSigDefTL
-                where parseSigDefTL = try $ do
-                                    sigDef <- parseSigDef
-                                    return $ MacCxtTLNode sigDef
-                      parseMacDefTL = try $ do
+parseMacCxtStat = parseMacDefTL
+                where parseMacDefTL = try $ do
                                   macDef <- parseMacDef
                                   return $ MacCxtTLNode macDef
 
-parseSigDef :: Parser MacCxtNode
-parseSigDef = try $ do
-            fn <- parseIdAsIdentifier
-            requireSpaces
-            string "::"
-            requireSpaces
-            sig <- parseSigList
-            return $ SigDefMNode fn sig
-
-parseSigList :: Parser SigList
-parseSigList = fnType <|> primType <?> "signature"
+parseMacSig :: Parser MacSig
+parseMacSig = fnType <|> primType <?> "signature"
              where primType = try $ do
                             cxtId <- parseCxtId
                             return [cxtId]
@@ -154,7 +141,7 @@ parseSigList = fnType <|> primType <?> "signature"
                           requireSpaces
                           string "->"
                           requireSpaces
-                          lst <- parseSigList
+                          lst <- parseMacSig
                           skipSpaces
                           return (cxtId:lst)
 
@@ -170,13 +157,24 @@ parseCxtId = try parseCxtId'
                                                    oneOf "-"
 
 parseMacDef :: Parser MacCxtNode
-parseMacDef = try $ do
-            (id, params) <- parseMacDefIdAndParams
-            skipSpaces
-            string "="
-            skipSpaces
-            defi <- parseMaccall
-            return $ MacDefMCNode id params defi
+parseMacDef = parseMacDef2 <|> parseMacDef1 <?> "macro defination"
+            where parseMacDef2 = try $ do
+                               (id, params) <- parseMacDefIdAndParams
+                               requireSpaces
+                               string "::"
+                               requireSpaces
+                               sig <- parseMacSig
+                               return $ MacDef2MNode id sig params
+                  parseMacDef1 = try $ do
+                               (id, params) <- parseMacDefIdAndParams
+                               requireSpaces
+                               string ":"
+                               requireSpaces
+                               sig <- parseMacSig
+                               requireSpaces
+                               string "="
+                               defi <- parseMaccall
+                               return $ MacDef1MNode id sig params defi
 
 parseMacDefIdAndParams :: Parser (Identifier, MacParams)
 parseMacDefIdAndParams = infixOp <|> prefixOp
