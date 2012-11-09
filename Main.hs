@@ -19,17 +19,11 @@ main = do
       case parse fname str of
            Left x -> print x
            Right x -> print (macroDefine x)
-    "--signa":fname:xs -> do
-      str <- readFile fname
-      case parse fname str of
-           Left x -> print x
-           Right x -> print (signatureDefine x)
     "--insts":fname:xs ->  do
       str <- readFile fname
       case parse fname str of
            Left x -> print x
            Right x -> print $ compile (macroDefine x)
-                                      (signatureDefine x)
                                       x
     "--eval":fname:xs -> do
       str <- readFile fname
@@ -37,7 +31,6 @@ main = do
            Left x -> print x
            Right x -> 
              case (compile (macroDefine x)
-                           (signatureDefine x)
                            x) of
                Right inst -> vm inst
                Left err -> print err
@@ -46,7 +39,6 @@ main = do
             case parse path str of
                        Left x -> print x
                        Right x -> case (compile (macroDefine x)
-                                                (signatureDefine x)
                                                 x) of
                                     Right inst -> vm inst
                                     Left err -> print err

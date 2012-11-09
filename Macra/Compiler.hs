@@ -1,7 +1,6 @@
 module Macra.Compiler (MacroMap,
                        compile,
                        macroDefine,
-                       signatureDefine,
                        macroExpand,
                        emptyMacroMap,
                        toplevelContext) where
@@ -13,37 +12,10 @@ import Macra.VM hiding (Identifier)
 import qualified Macra.Parser as P
 import qualified Macra.VM as VM
 
-data MacroDefiner = MacroDefiner {
-     macroDefinerMacroMap :: MacroMap
-   , macroDefinerContext :: P.CxtId
-     }
-
 type MacroMap = M.Map (P.CxtId, P.Identifier) Macro
-type Macro = (MacParams, Node)
-type MacroDefinerCmd = S.State MacroDefiner MacroMap
-
-data SignatureDefiner = SignatureDefiner {
-     signatureDefinerSignatureMap :: SignatureMap
-     }
-
-type SignatureMap = M.Map P.Identifier Signature
-type Signature = SigList
-
-data MacroExpander = MacroExpander {
-     macroExpanderMacroMap :: MacroMap
-   , macroExpanderSignatureMap :: SignatureMap
-   , macroExpanderSignature :: Signature
-     }
-type MacroExpanderCmd = S.State MacroExpander Macro
-
+type Macro = (MacSig, MacParams, Node)
 data CompileError = CompileError deriving (Eq, Show)
 data ExpandError = ExpandError deriving (Eq, Show)
-
-{-lambdanode example
-  input   : !funcall !lambda foo !add foo 2 3
-  parseed : (FuncallNode (LambdaNode (SymNode 'foo') (AddNode (SymNode 'foo') (NumNode 2))) (NumNode 3)) 
-  compiled: (FrameInst HaltInst (ConstExpr 1 (ArgInst (CloseInst foo (AddInst (ReferInst 'foo' ReturnInst) (ConstExpr 2 ReturnInst) ReturnInst) ApplyInst))))
--}
 
 toplevelContext :: P.CxtId
 toplevelContext = "toplevel"
@@ -51,62 +23,17 @@ toplevelContext = "toplevel"
 emptyMacroMap :: MacroMap
 emptyMacroMap = M.fromList []
 
-emptySignatureMap :: SignatureMap
-emptySignatureMap = M.fromList []
-
 macroDefine :: [ToplevelNode] -> MacroMap
 macroDefine ((EvalCxtTLNode x):xs) = macroDefine xs
-macroDefine ((MacCxtTLNode x):xs) = macroDefineMacCxtNodes (macroDefine xs) x
+macroDefine ((MacCxtTLNode x):xs) = macroDefineMacCxtNode (macroDefine xs) x
 macroDefine [] = emptyMacroMap
 
-macroDefineMacCxtNodes :: MacroMap -> [MacCxtNode] -> MacroMap
-macroDefineMacCxtNodes mm (node:nodes) = macroDefineMacCxtNodes
-                                           (macroDefineMacCxtNode mm node)
-                                           nodes
-macroDefineMacCxtNodes mm [] = mm
-
 macroDefineMacCxtNode :: MacroMap -> MacCxtNode -> MacroMap
-macroDefineMacCxtNode mm node = S.evalState (macroDefineMacCxtNode' node) (MacroDefiner mm toplevelContext)
-
-macroDefineMacCxtNode' :: MacCxtNode -> MacroDefinerCmd
-macroDefineMacCxtNode' (CxtDefMNode cxtId (cxtDefs)) = do
-  definer <- S.get
-  S.put definer { macroDefinerContext = cxtId }
-  macroContextDefine cxtDefs
-macroDefineMacCxtNode' _ = return emptyMacroMap
-
-macroContextDefine :: [CxtDefMNode] -> MacroDefinerCmd
-macroContextDefine (x:xs) = macroContextDefine' x >> macroContextDefine xs
-macroContextDefine [] = do
-                      definer <- S.get
-                      return $ macroDefinerMacroMap definer
-
-macroContextDefine' :: CxtDefMNode -> MacroDefinerCmd
-macroContextDefine' (MacDefMCNode macId params node) = do
-  definer <- S.get
-  S.put definer {
-        macroDefinerMacroMap = M.insert ((macroDefinerContext definer), macId)
-                                   (params, node)
-                                   (macroDefinerMacroMap definer)
-        }
-  newDefiner <- S.get
-  return (macroDefinerMacroMap newDefiner)
-
-signatureDefine :: [ToplevelNode] -> SignatureMap
-signatureDefine ((EvalCxtTLNode x):xs) = signatureDefine xs
-signatureDefine ((MacCxtTLNode x):xs) =  signatureDefineMacCxtNodes (signatureDefine xs) x
-signatureDefine [] = emptySignatureMap
-
-signatureDefineMacCxtNodes :: SignatureMap -> [MacCxtNode] -> SignatureMap
-signatureDefineMacCxtNodes sm (node:nodes) = signatureDefineMacCxtNodes
-                                           (signatureDefineMacCxtNode sm node)
-                                           nodes
-signatureDefineMacCxtNodes sm [] = sm
-
-signatureDefineMacCxtNode :: SignatureMap -> MacCxtNode -> SignatureMap
-signatureDefineMacCxtNode sm (SigDefMNode id sig) = M.insert id sig sm
-signatureDefineMacCxtNode sm _ = sm
-
+macroDefineMacCxtNode mm (MacDef1MNode id [] params node) =
+  M.insert (toplevelContext, id) ([], params, node) mm
+macroDefineMacCxtNode mm (MacDef1MNode id sig params node) =
+  M.insert ((last sig), id) ((init sig), params, node) mm
+{-
 macroExpand :: MacroMap -> SignatureMap -> Node -> Either ExpandError Node
 macroExpand mm sm node =
   case S.evalState (macroExpand' node) (MacroExpander mm sm [toplevelContext]) of
@@ -203,17 +130,19 @@ macroReplaceSym param id (SymNode sym)
 -- m (f a) b
 -- ===> !lambda (f a) b
 macroReplaceSym param id _ = id
-
-compile :: MacroMap -> SignatureMap -> [ToplevelNode] -> Either CompileError Inst 
-compile mm sm ((MacCxtTLNode x):xs) = compile mm sm xs
-compile mm sm ((EvalCxtTLNode x):xs) =
-        case  (macroExpand mm sm x) of
+-}
+macroExpand :: MacroMap -> Node -> Either ExpandError Node
+macroExpand mm node = Right node
+compile :: MacroMap -> [ToplevelNode] -> Either CompileError Inst 
+compile mm ((MacCxtTLNode x):xs) = compile mm xs
+compile mm ((EvalCxtTLNode x):xs) =
+        case  (macroExpand mm x) of
           Right node ->
-            case (compile mm sm xs) of
+            case (compile mm xs) of
               Right insts -> Right $ compileNode node insts
               l@(Left err) -> l
           Left err -> Left $ CompileError
-compile mm sm [] = Right HaltInst
+compile mm [] = Right HaltInst
 
 
 compileNode :: Node -> Inst -> Inst
