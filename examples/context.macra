@@ -1,0 +1,18 @@
+#macro
+
+#context a
+x :+ y = 1
+#end
+
+#context b
+x :+ y = 2
+#end
+#end
+
+f :: a -> expr
+!define f !lambda x x;
+!print $ f $ x :+ y;
+
+g :: b -> expr
+!define g !lambda x x;
+!print $ g $ x :+ y;
