@@ -47,7 +47,7 @@ spec = do
                      (MaccallNode
                        (SymNode (SymId "m"))
                        (SymNode (SymId "a"))) `shouldBe`
-                         (SymNode (SymId "a")))
+                         (Right (SymNode (SymId "a"))))
       it "b" $ do
         (macroExpand (fromList
                        [ ( (toplevelContext, (SymId "m")),
@@ -63,9 +63,9 @@ spec = do
                          (SymNode (SymId "m"))
                          (SymNode (SymId "a")))
                        (SymNode (SymId "b"))) `shouldBe`
-                         (MaccallNode
+                         (Right (MaccallNode
                            (SymNode (SymId "a"))
-                           (SymNode (SymId "b"))))
+                           (SymNode (SymId "b")))))
 
       it "b" $ do
         (macroExpand (fromList
@@ -90,6 +90,7 @@ spec = do
                            (SymNode (SymId "=>"))
                            (SymNode (SymId "x")))
                          (SymNode (SymId "x")))) `shouldBe`
-                         (FuncallNode
-                           (SymNode (SymId "map"))
-                           (SymNode (SymId "yyy"))))
+                         (Right
+                           (FuncallNode
+                             (SymNode (SymId "map"))
+                             (SymNode (SymId "yyy")))))

@@ -36,8 +36,8 @@ data MacroExpander = MacroExpander {
      }
 type MacroExpanderCmd = S.State MacroExpander Macro
 
-data CompileError = CompileError deriving (Show)
-data ExpandError = ExpandError deriving (Show)
+data CompileError = CompileError deriving (Eq, Show)
+data ExpandError = ExpandError deriving (Eq, Show)
 
 {-lambdanode example
   input   : !funcall !lambda foo !add foo 2 3
