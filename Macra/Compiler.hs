@@ -139,9 +139,14 @@ macroExpand' (MaccallNode node arg) = do
                  where sig' = case M.lookup sym sm of
                                    Nothing -> [toplevelContext]
                                    Just sig' -> sig'
-               ([], FuncallNode fn arg) -> do
-                 case macroArgExpand mm sm (tail sig) arg of
-                   Right arg -> return ([], FuncallNode fn arg)
+               ([], FuncallNode fn fnarg) -> do
+                 case macroArgExpand mm sm [toplevelContext] fn of
+                   Right fn ->
+                     case macroArgExpand mm sm (tail sig) fnarg of
+                       Right fnarg -> return ([], FuncallNode
+                                                    (FuncallNode fn fnarg)
+                                                    arg)
+                       Left err -> fail "missing to apply"
                    Left err -> fail "missing to apply"
                ([], (LambdaNode param body)) -> do
                  case macroArgExpand mm sm [toplevelContext] body of
@@ -155,7 +160,6 @@ macroExpand' (MaccallNode node arg) = do
                  case macroArgExpand mm sm [toplevelContext] node of
                    Right arg -> return ([], PrintNode arg)
                    l@(Left err) -> fail "missing to apply"
-               ([], node) -> return ([], node)
 macroExpand' (LambdaNode param body) = do
              -- TODO: this is buggy.
              ([], body) <- macroExpand' body
