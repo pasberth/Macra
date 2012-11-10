@@ -1,16 +1,7 @@
-#macro
+bar : foo = 1;
+fuga : hoge = 2;
 
-#context foo
-bar = 1
-#end
-
-#context hoge
-fuga = 2
-#end
-
-#end
-
-f :: foo -> hoge -> expr
+f x y :: foo -> hoge -> toplevel;
 !define f !lambda x !lambda y 3;
 !print $ f bar fuga;
 !print $ f fuga bar;
