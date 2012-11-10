@@ -77,6 +77,20 @@ macroReplace param node@(MacroNode _) arg = node
 macroReplace param node@(SymNode sym) arg
              | param == sym = arg
              | otherwise = node
+macroReplace param node@(FuncallNode a b) arg =
+             FuncallNode (macroReplace param a arg)
+                         (macroReplace param b arg)
+macroReplace param node@(LambdaNode var body) arg =
+             LambdaNode (macroReplaceSym param var arg)
+                        (macroReplace param body arg)
+macroReplace param node arg = node
+
+macroReplaceSym :: P.Identifier -> P.Identifier -> Node -> P.Identifier
+macroReplaceSym param var (P.SymNode arg)
+                | param == var = arg
+                | otherwise = var
+macroReplaceSym param var arg = var
+
 compile :: MacroMap -> [ToplevelNode] -> Either CompileError Inst 
 compile mm ((MacCxtTLNode x):xs) = compile mm xs
 compile mm ((EvalCxtTLNode x):xs) =
@@ -111,3 +125,4 @@ compileNode (MaccallNode a b) next =
   compileNode (FuncallNode a b) next
 compileNode (PrintNode argument) next =
   compileNode argument $ PrintInst next
+compileNode (MacroNode node) next = compileNode node next
