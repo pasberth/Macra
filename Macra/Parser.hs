@@ -174,8 +174,22 @@ parseMacDef = parseMacDef2 <|> parseMacDef1 <?> "macro defination"
                                return $ MacDef1MNode id sig params (MacroNode defi)
 
 parseMacDefIdAndParams :: Parser (Identifier, MacParams)
-parseMacDefIdAndParams = infixOp <|> prefixOp
-                       where infixOp = try $ do
+parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
+                       where brackets = bracket "(" ")" <|>
+                                        bracket "[" "]"
+                             bracket beg end = try $ do
+                                     string beg
+                                     skipSpaces
+                                     param <- parseIdAsIdentifier
+                                     skipSpaces
+                                     string end
+                                     return (beg, [param])
+                             suffixOp = try $ do
+                                   params <- many1 parseIdAsIdentifier
+                                   skipSpaces
+                                   id <- string "@" >> parseMarkAsIdentifer
+                                   return (id, params)
+                             infixOp = try $ do
                                    param1 <- parseIdAsIdentifier
                                    skipSpaces
                                    id <- (try $ string ":" >>

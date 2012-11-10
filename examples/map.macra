@@ -1,3 +1,6 @@
+(a) : list -> list
+    = a;
+
 a => b : expr -> expr -> function
        = !lambda a b;
 
@@ -7,4 +10,4 @@ a, b : expr -> function -> function
 map f :: function -> list;
 list l :: list -> toplevel;
 
-list $ map x => !print x;
+list (map x => !print x);
