@@ -16,8 +16,7 @@ instance Show Value where
   show (List xs) = concat ["(", concat (map (\x -> (show x) ++ ";") xs), ")"]
   show (Closure var body e) = concat [show var, show body]
 
-data Identifier = Sym String | Nil deriving (Show, Eq, Ord)
-
+type Identifier = String
 data Inst = FrameInst  Inst       Inst           --hasnext
           | ConstExpr  Value      Inst           --hasnext
           | ArgInst    Inst                      --hasnext
@@ -139,19 +138,13 @@ vm'' vmState@(VM a (ArgInst nxt) e r s _) = do
       vm'
 vm'' vmState@(VM a ApplyInst _ (val:r) s mem) = do
       case a of
-        (Closure (Sym var) body envRef) -> do
+        (Closure var body envRef) -> do
           closedEnvRef <- S.lift U.newUnique
           S.put vmState {
                 vmEnvRef = closedEnvRef
               , vmEnvMem = (M.insert closedEnvRef
-                                     ((M.fromList [ ((Sym var), val) ]), envRef)
+                                     ((M.fromList [ (var, val) ]), envRef)
                                      mem)
-              , vmInst = body
-                }
-          vm'
-        (Closure Nil body envRef) -> do
-          S.put vmState {
-                vmEnvRef = envRef
               , vmInst = body
                 }
           vm'
