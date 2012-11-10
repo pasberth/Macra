@@ -1,7 +1,3 @@
-#macro
-#context toplevel
-m x = x
-#end
-#end
-m :: number -> any
-m 1
+m x : number -> toplevel
+    = x;
+m 1;
