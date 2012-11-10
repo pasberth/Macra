@@ -4,5 +4,5 @@ a => b : expr -> expr -> function
 a, b : expr -> function -> function
      = !lambda a b;
 
-map :: function -> list -> list;
+map f l :: function -> list -> list;
 map x => !print x

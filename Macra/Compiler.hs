@@ -33,6 +33,13 @@ macroDefineMacCxtNode mm (MacDef1MNode id [] params node) =
   M.insert (toplevelContext, id) ([], params, node) mm
 macroDefineMacCxtNode mm (MacDef1MNode id sig params node) =
   M.insert ((last sig), id) ((init sig), params, node) mm
+macroDefineMacCxtNode mm (MacDef2MNode id sig params) =
+  M.insert ((last sig), id) ( (init sig)
+                            , params
+                            , (recur (SymNode id) params)) mm
+  where recur f [] = f
+        recur f params = (FuncallNode (recur f (init params))
+                                      (SymNode (last params)))
 {-
 macroExpand :: MacroMap -> SignatureMap -> Node -> Either ExpandError Node
 macroExpand mm sm node =
