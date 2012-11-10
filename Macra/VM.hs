@@ -79,9 +79,12 @@ vm inst = do
                        , vmRib = []
                        , vmStack = []
                        , vmEnvMem = M.fromList [ ( envRef
-                                                 , ((M.fromList []), dummyParentEnvRef)
+                                                 , (initialEnv, dummyParentEnvRef)
                                                  ) ]
                          }
+        where initialEnv = M.fromList [ ("nil", nil) ]
+
+
 
 vm' :: VMCommand
 vm' = S.get >>= vm''
