@@ -93,6 +93,9 @@ macroReplace param node@(IfNode a b c) arg =
 macroReplace param node@(LambdaNode var body) arg =
              LambdaNode (macroReplaceSym param var arg)
                         (macroReplace param body arg)
+macroReplace param node@(DefineNode id expr) arg =
+             DefineNode (macroReplaceSym param id arg)
+                        (macroReplace param expr arg)
 macroReplace param node arg = node
 
 macroReplaceSym :: P.Identifier -> P.Identifier -> Node -> P.Identifier
