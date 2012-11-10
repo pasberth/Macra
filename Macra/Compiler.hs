@@ -116,10 +116,9 @@ compileNode (NumNode num) next =
 {-compile (ListNode [node]) nil next =
   ConstExpr (List [Char node]) next-}
 compileNode (IfNode condExp thenExp elseExp) next =
-  TestInst (compileNode condExp next)
-           (compileNode thenExp next)
-           (compileNode elseExp next)
-           next
+  compileNode condExp $
+    TestInst (compileNode thenExp next)
+             (compileNode elseExp next)
 compileNode (LambdaNode param expr) next = 
   CloseInst param (compileNode expr ReturnInst) next
 compileNode (DefineNode var val) next =

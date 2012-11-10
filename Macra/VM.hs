@@ -24,7 +24,7 @@ data Inst = FrameInst  Inst       Inst           --hasnext
           | ApplyInst
           | ReferInst  Identifier Inst           --hasnext
           | ReturnInst
-          | TestInst   Inst       Inst Inst Inst --hasnext
+          | TestInst   Inst       Inst
           | DefineInst Identifier Inst           --hasnext
           | HaltInst
           | PrintInst  Inst                      --hasnext
@@ -167,6 +167,17 @@ vm'' vmState@(VM a ReturnInst e r [] _) = do
       S.liftIO $ do
         putStr $ concat ["stack is empty"]
       return ()
+vm'' vmState@(VM a (TestInst thenExp elseExp) e r s mem)
+     | a == nil = do
+       S.put vmState {
+             vmInst = elseExp
+             }
+       vm'
+     | otherwise = do
+       S.put vmState {
+             vmInst = thenExp
+             }
+       vm'
 vm'' vmState@(VM a (CloseInst var body nxt) envRef r s mem) = do
         S.put vmState {
               vmAcc = Closure var body envRef
