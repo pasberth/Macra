@@ -1,14 +1,10 @@
-#macro
-#context bool
-true = 1;
-false = 2;
-#end
-#end
+true : bool = 1;
+false : bool = 0;
 
-f :: bool -> expr
+f x :: bool -> toplevel;
 !define f !lambda x x;
 
-g :: expr -> expr
+g x :: toplevel -> toplevel;
 !define g !lambda x y;
 
 !print $ f true;
