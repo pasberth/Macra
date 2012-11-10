@@ -10,8 +10,7 @@ module Macra.Parser (Identifier(..),
 import qualified Text.ParserCombinators.Parsec as P
 import Text.ParserCombinators.Parsec hiding (parse)
 
-data Identifier = SymId String | NilId deriving (Show, Eq, Ord)
-
+type Identifier = String
 data ToplevelNode = MacCxtTLNode MacCxtNode
                   | EvalCxtTLNode Node
                   deriving (Show, Eq)
@@ -39,8 +38,7 @@ data Node = SymNode Identifier
           deriving (Eq)
 
 instance Show Node where
-  show (SymNode NilId) = "#<nil>"
-  show (SymNode (SymId sym)) = concat ["'", sym]
+  show (SymNode sym) = concat ["'", sym]
   show (CharNode c) = show c
   show (NumNode n) = show n
   show (ListNode l) = show l
@@ -68,19 +66,18 @@ parseMarkAsIdentifer = parseMarkAsIdentifer' <|> parseIdAsIdentifier
           where parseMarkAsIdentifer' = try $ do
                 a <- beginLetter
                 b <- many containLetter
-                return $ SymId (a:b)
+                return (a:b)
                 -- ruby -e 'puts [*33..47, *58..64, *91..96, *123..126].map(&:chr).join'
                 where beginLetter = oneOf "!\"#$%&'()*+,-./;<=>?@[\\]^_`{|}~"
                       containLetter = beginLetter
 
 
 parseIdAsIdentifier :: Parser Identifier
-parseIdAsIdentifier = try parseNilIdAsIdentifier <|> try parseSymIdAsIdentifier
-                    where parseNilIdAsIdentifier = do { string "nil"; return NilId }
-                          parseSymIdAsIdentifier = do
+parseIdAsIdentifier = try parseSymIdAsIdentifier
+                    where parseSymIdAsIdentifier = do
                                                  a <- beginLetter
                                                  b <- many containLetter
-                                                 return $ SymId (a:b)
+                                                 return (a:b)
                                                  where beginLetter = letter
                                                        containLetter = letter <|> oneOf "0123456789" <|> oneOf "-"
 
@@ -187,10 +184,10 @@ parseMacDefIdAndParams = infixOp <|> prefixOp
                                                 parseMarkAsIdentifer)
                                          <|> (try $ do
                                                   sym <- string "=>"
-                                                  return $ SymId sym)
+                                                  return sym)
                                          <|> (try $ do
                                                   sym <- (string ",")
-                                                  return $ SymId sym)
+                                                  return sym)
                                    skipSpaces
                                    param2 <- parseIdAsIdentifier
                                    params <- many (try $ requireSpaces >>
@@ -257,7 +254,7 @@ parseBracketMaccall = parseBracket <|> parseVMInst <|> parseId <|> parseNumber
                                                         ;  parseMaccall >>= return })
                                         ; skipSpaces
                                         ; string end
-                                        ; return $ foldl (\a b -> MaccallNode a b) (SymNode $ SymId beg) (arg1:args)
+                                        ; return $ foldl (\a b -> MaccallNode a b) (SymNode beg) (arg1:args)
                                     }
                           parseBracket = bracket "[" "]" <|>
                                        bracket "(" ")"
@@ -287,7 +284,7 @@ parseEqualArrow = try (do
                 string "=>"
                 skipSpaces
                 expr2 <- parseMaccall
-                return $ MaccallNode (MaccallNode (SymNode $ SymId "=>") expr1) expr2
+                return $ MaccallNode (MaccallNode (SymNode "=>") expr1) expr2
                 ) <?> "`=>'"
 
 parseComma :: Parser Node
@@ -297,7 +294,7 @@ parseComma = try (do
            string ","
            skipSpaces
            expr2 <- parseMaccall
-           return $ MaccallNode (MaccallNode (SymNode $ SymId ",") expr1) expr2
+           return $ MaccallNode (MaccallNode (SymNode ",") expr1) expr2
            ) <?> "`,'"
 
 parseVMInst :: Parser Node

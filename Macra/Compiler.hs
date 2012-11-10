@@ -107,7 +107,7 @@ compile mm [] = Right HaltInst
 
 compileNode :: Node -> Inst -> Inst
 
-compileNode (SymNode (P.SymId symbol)) next =
+compileNode (SymNode symbol) next =
   ReferInst (VM.Sym symbol) next
 compileNode (CharNode chr) next =
   ConstExpr (VM.Char chr) next
@@ -120,9 +120,9 @@ compileNode (IfNode condExp thenExp elseExp) next =
            (compileNode thenExp next)
            (compileNode elseExp next)
            next
-compileNode (LambdaNode (P.SymId param) expr) next = 
+compileNode (LambdaNode param expr) next = 
   CloseInst (VM.Sym param) (compileNode expr ReturnInst) next
-compileNode (DefineNode (P.SymId var) val) next =
+compileNode (DefineNode var val) next =
   compileNode val $ DefineInst (VM.Sym var) next
 compileNode (FuncallNode lambda argument) next = 
   FrameInst next (compileNode argument (ArgInst (compileNode lambda ApplyInst)))
