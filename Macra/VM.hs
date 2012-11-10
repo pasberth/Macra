@@ -18,17 +18,17 @@ instance Show Value where
 
 data Identifier = Sym String | Nil deriving (Show, Eq, Ord)
 
-data Inst = FrameInst  Inst       Inst      --hasnext
-          | ConstExpr  Value      Inst      --hasnext
-          | ArgInst    Inst                 --hasnext
-          | CloseInst  Identifier Inst Inst --hasnext
+data Inst = FrameInst  Inst       Inst           --hasnext
+          | ConstExpr  Value      Inst           --hasnext
+          | ArgInst    Inst                      --hasnext
+          | CloseInst  Identifier Inst Inst      --hasnext
           | ApplyInst
-          | ReferInst  Identifier Inst      --hasnext
+          | ReferInst  Identifier Inst           --hasnext
           | ReturnInst
-          | TestInst   Inst       Inst Inst --hasnext
-          | DefineInst Identifier Inst      --hasnext
+          | TestInst   Inst       Inst Inst Inst --hasnext
+          | DefineInst Identifier Inst           --hasnext
           | HaltInst
-          | PrintInst  Inst                 --hasnext
+          | PrintInst  Inst                      --hasnext
           deriving (Show, Eq, Ord)
 
 data VM = VM {

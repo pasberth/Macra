@@ -115,8 +115,11 @@ compileNode (NumNode num) next =
   ConstExpr (VM.Double num) next
 {-compile (ListNode [node]) nil next =
   ConstExpr (List [Char node]) next-}
-compileNode (IfNode condExp thenExp) next =
-  TestInst (compileNode condExp next) (compileNode thenExp next) next
+compileNode (IfNode condExp thenExp elseExp) next =
+  TestInst (compileNode condExp next)
+           (compileNode thenExp next)
+           (compileNode elseExp next)
+           next
 compileNode (LambdaNode (P.SymId param) expr) next = 
   CloseInst (VM.Sym param) (compileNode expr ReturnInst) next
 compileNode (DefineNode (P.SymId var) val) next =

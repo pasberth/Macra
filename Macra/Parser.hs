@@ -28,10 +28,9 @@ data Node = SymNode Identifier
           | CharNode Char
           | NumNode  Double
           | ListNode [Node]
-          | IfNode Node Node
+          | IfNode Node Node Node
           | LambdaNode Identifier Node
           | DefineNode Identifier Node
-          | ReturnNode Node
           | FuncallNode Node Node
           | PrintNode Node
           | MaccallNode Node Node
@@ -45,10 +44,9 @@ instance Show Node where
   show (CharNode c) = show c
   show (NumNode n) = show n
   show (ListNode l) = show l
-  show (IfNode a b) = concat ["!if", (indent2 $ show a), (indent2 $ show b)]
+  show (IfNode a b c) = concat ["!if", (indent2 $ show a), (indent2 $ show b), (indent2 $ show c)]
   show (LambdaNode a b) = concat ["!lambda", (indent2 $ show a), (indent2 $ show b)]
   show (DefineNode a b) = concat ["!define", (indent2 $ show a), (indent2 $ show b)]
-  show (ReturnNode a) = concat ["!return", (indent2 $ show a)]
   show (FuncallNode a b) = concat ["!funcall", (indent2 $ show a), (indent2 $ show b)]
   show (MaccallNode a b) = concat ["#maccall", (indent2 $ show a), (indent2 $ show b)]
   show (MacroNode a) = concat ["#{", (indent2 $ show a ++ "\n}")]
@@ -303,16 +301,18 @@ parseComma = try (do
            ) <?> "`,'"
 
 parseVMInst :: Parser Node
-parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMReturn <|> parseVMDefine <|> parseVMFuncall <|> parseVMPrint
+parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMDefine <|> parseVMFuncall <|> parseVMPrint
 
 parseVMIf :: Parser Node
 parseVMIf = try $ do
           string "!if"
           requireSpaces
-          a <- parseExpr
+          cond <- parseExpr
           skipSpaces
-          b <- parseExpr
-          return $ IfNode a b
+          thenExpr <- parseExpr
+          skipSpaces
+          elseExpr <- parseExpr
+          return $ IfNode cond thenExpr elseExpr
 
 parseVMLambda :: Parser Node
 parseVMLambda = try $ do
@@ -322,13 +322,6 @@ parseVMLambda = try $ do
               skipSpaces
               expr <- parseExpr
               return $ LambdaNode id expr
-
-parseVMReturn :: Parser Node
-parseVMReturn = try $ do
-              string "!return"
-              requireSpaces
-              expr <- parseExpr
-              return $ ReturnNode expr
 
 parseVMDefine :: Parser Node
 parseVMDefine = try $ do
