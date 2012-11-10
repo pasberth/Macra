@@ -35,6 +35,7 @@ data Node = SymNode Identifier
           | FuncallNode Node Node
           | PrintNode Node
           | MaccallNode Node Node
+          | MacroNode Node
           | KwargNode Identifier Node
           deriving (Eq)
 
@@ -50,6 +51,7 @@ instance Show Node where
   show (ReturnNode a) = concat ["!return", (indent2 $ show a)]
   show (FuncallNode a b) = concat ["!funcall", (indent2 $ show a), (indent2 $ show b)]
   show (MaccallNode a b) = concat ["#maccall", (indent2 $ show a), (indent2 $ show b)]
+  show (MacroNode a) = concat ["#{", (indent2 $ show a ++ "\n}")]
   show (KwargNode kw arg) = concat ["Kwarg ", show kw, " = ", (indent2 $ show arg)]
   show (PrintNode a) = concat ["!print", (indent2 $ show a)]
 
@@ -176,7 +178,7 @@ parseMacDef = parseMacDef2 <|> parseMacDef1 <?> "macro defination"
                                string "="
                                requireSpaces
                                defi <- parseMaccall
-                               return $ MacDef1MNode id sig params defi
+                               return $ MacDef1MNode id sig params (MacroNode defi)
 
 parseMacDefIdAndParams :: Parser (Identifier, MacParams)
 parseMacDefIdAndParams = infixOp <|> prefixOp
