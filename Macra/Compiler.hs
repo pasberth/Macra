@@ -36,110 +36,47 @@ macroDefineMacCxtNode mm (MacDef1MNode id sig params node) =
 macroDefineMacCxtNode mm (MacDef2MNode id sig params) =
   M.insert ((last sig), id) ( (init sig)
                             , params
-                            , (recur (SymNode id) params)) mm
+                            , (MacroNode (recur (SymNode id) params))) mm
   where recur f [] = f
         recur f params = (FuncallNode (recur f (init params))
                                       (SymNode (last params)))
-{-
-macroExpand :: MacroMap -> SignatureMap -> Node -> Either ExpandError Node
-macroExpand mm sm node =
-  case S.evalState (macroExpand' node) (MacroExpander mm sm [toplevelContext]) of
-    ([], node) -> Right node
-    (params, node) -> Left ExpandError
 
-macroExpand' :: Node -> MacroExpanderCmd
-macroExpand' (SymNode sym) = do
-             expander@(MacroExpander mm sm sig) <- S.get
-             case M.lookup (cxtId sig, sym) mm of
-                  Just macro -> return macro
-                  Nothing -> return ([], (SymNode sym))
-             where cxtId sig = case sig of
-                                    [] -> toplevelContext
-                                    (cxtId:sig) -> cxtId
+macroExpand :: MacroMap -> Node -> Either ExpandError Node
+macroExpand mm node =
+  case macroExpand' mm toplevelContext node of
+    ([], [], node) -> Right node
+    otherwise -> Left ExpandError
 
+macroArgExpand :: MacroMap -> P.CxtId -> Node -> Node
+macroArgExpand mm cxtId node =
+  case macroExpand' mm cxtId node of
+    ([], [], node) -> node
+    -- otherwise -> Left ExpandError
 
-macroExpand' (MaccallNode node arg) = do
-             (MacroExpander mm sm sig) <- S.get
-             r <- macroExpand' node
-             case r of
-               ((param:params), curriedMacro) ->
-                 return (params, (macroReplace param
-                                               curriedMacro
-                                               arg))
-               ([], SymNode sym) -> do
-                 case macroArgExpand mm sm sig' arg of
-                   Right arg -> return ([], FuncallNode (SymNode sym) arg)
-                   Left err -> fail "missing to apply"
-                 where sig' = case M.lookup sym sm of
-                                   Nothing -> [toplevelContext]
-                                   Just sig' -> sig'
-               ([], FuncallNode fn fnarg) -> do
-                 case macroArgExpand mm sm [toplevelContext] fn of
-                   Right fn ->
-                     case macroArgExpand mm sm (tail sig) fnarg of
-                       Right fnarg -> return ([], FuncallNode
-                                                    (FuncallNode fn fnarg)
-                                                    arg)
-                       Left err -> fail "missing to apply"
-                   Left err -> fail "missing to apply"
-               ([], (LambdaNode param body)) -> do
-                 case macroArgExpand mm sm [toplevelContext] body of
-                   Right arg -> return ([], LambdaNode param arg)
-                   l@(Left err) -> fail "missing to apply"
-               ([], (DefineNode id expr)) -> do
-                 case macroArgExpand mm sm [toplevelContext] node of
-                   Right arg -> return ([], DefineNode id arg)
-                   l@(Left err) -> fail "missing to apply"
-               ([], (PrintNode node)) -> do
-                 case macroArgExpand mm sm [toplevelContext] node of
-                   Right arg -> return ([], PrintNode arg)
-                   l@(Left err) -> fail "missing to apply"
-macroExpand' (LambdaNode param body) = do
-             -- TODO: this is buggy.
-             ([], body) <- macroExpand' body
-             return ([], LambdaNode param body)
-macroExpand' (DefineNode id expr) = do
-             ([], expr) <- macroExpand' expr
-             return ([], DefineNode id expr)
-macroExpand' (PrintNode node) = do
-             ([], node) <- macroExpand' node
-             return ([], PrintNode node)
-macroExpand' node = return ([], node)
-
-macroArgExpand :: MacroMap -> SignatureMap -> Signature -> Node -> Either ExpandError Node
-macroArgExpand mm sm sig node =
-    case S.evalState (macroExpand' node) (MacroExpander mm sm sig) of
-      ([], node) -> Right node
-      (params, node) -> Left $ ExpandError
-      --concat [ "macro applying missing: "
-      --                                , show params
-      --                                , "was not applied."
-      --                                ]
-
+macroExpand' :: MacroMap -> P.CxtId -> Node -> Macro
+macroExpand' mm cxtId node@(SymNode macroId) =
+  case M.lookup (cxtId, macroId) mm of
+    Just macro -> macro
+    Nothing -> ([], [], node)
+macroExpand' mm cxtId node@(MaccallNode a b) =
+  case macroExpand' mm cxtId a of
+    ([], [], fn) ->
+        ( []
+        , []
+        , FuncallNode fn (macroArgExpand mm toplevelContext b))
+    (cxt:sig, param:params, (MacroNode macroNode)) ->
+        ( sig
+        , params
+        , (MacroNode (macroReplace param
+                                   macroNode
+                                   (macroArgExpand mm cxt b))))
+macroExpand' mm cxtId node = ([], [], node)
 
 macroReplace :: P.Identifier -> Node -> Node -> Node
-macroReplace param (SymNode sym) node
-             | param == sym = node
-             | otherwise = SymNode sym
-macroReplace param (MaccallNode a b) node =
-             MaccallNode (macroReplace param a node)
-                         (macroReplace param b node)
-macroReplace param (LambdaNode var body) node =
-             LambdaNode (macroReplaceSym param var node)
-                        (macroReplace param body node)
-macroReplace param node _ = node
-
-macroReplaceSym :: P.Identifier -> P.Identifier -> Node -> P.Identifier
-macroReplaceSym param id (SymNode sym)
-                | param == id = sym
-                | otherwise = id
--- m a b = !lambda a b
--- m (f a) b
--- ===> !lambda (f a) b
-macroReplaceSym param id _ = id
--}
-macroExpand :: MacroMap -> Node -> Either ExpandError Node
-macroExpand mm node = Right node
+macroReplace param node@(MacroNode _) arg = node
+macroReplace param node@(SymNode sym) arg
+             | param == sym = arg
+             | otherwise = node
 compile :: MacroMap -> [ToplevelNode] -> Either CompileError Inst 
 compile mm ((MacCxtTLNode x):xs) = compile mm xs
 compile mm ((EvalCxtTLNode x):xs) =
