@@ -60,6 +60,10 @@ macroExpand' mm cxtId node@(SymNode macroId) =
     Nothing -> ([], [], node)
 macroExpand' mm cxtId node@(PrintNode expr) =
   ([], [], PrintNode $ macroArgExpand mm toplevelContext expr)
+macroExpand' mm cxtId node@(IfNode condExp thenExp elseExp) =
+  ([], [], IfNode (macroArgExpand mm toplevelContext condExp)
+                  (macroArgExpand mm toplevelContext thenExp)
+                  (macroArgExpand mm toplevelContext elseExp))
 macroExpand' mm cxtId node@(MaccallNode a b) =
   case macroExpand' mm cxtId a of
     ([], [], fn) ->
@@ -82,6 +86,10 @@ macroReplace param node@(SymNode sym) arg
 macroReplace param node@(FuncallNode a b) arg =
              FuncallNode (macroReplace param a arg)
                          (macroReplace param b arg)
+macroReplace param node@(IfNode a b c) arg =
+             IfNode (macroReplace param a arg)
+                    (macroReplace param b arg)
+                    (macroReplace param c arg)
 macroReplace param node@(LambdaNode var body) arg =
              LambdaNode (macroReplaceSym param var arg)
                         (macroReplace param body arg)
