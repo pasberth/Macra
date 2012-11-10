@@ -58,6 +58,8 @@ macroExpand' mm cxtId node@(SymNode macroId) =
   case M.lookup (cxtId, macroId) mm of
     Just macro -> macro
     Nothing -> ([], [], node)
+macroExpand' mm cxtId node@(PrintNode expr) =
+  ([], [], PrintNode $ macroArgExpand mm toplevelContext expr)
 macroExpand' mm cxtId node@(MaccallNode a b) =
   case macroExpand' mm cxtId a of
     ([], [], fn) ->

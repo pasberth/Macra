@@ -1,18 +1,12 @@
-#macro
+x :+ y : expr -> expr -> a
+       = 1;
+x :+ y : expr -> expr -> b
+       = 2;
 
-#context a
-x :+ y = 1;
-#end
-
-#context b
-x :+ y = 2;
-#end
-#end
-
-f :: a -> expr
+f x :: a -> toplevel;
 !define f !lambda x x;
 !print $ f $ x :+ y;
 
-g :: b -> expr
+g x :: b -> toplevel;
 !define g !lambda x x;
 !print $ g $ x :+ y;
