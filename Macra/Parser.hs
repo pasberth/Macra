@@ -34,7 +34,6 @@ data Node = SymNode Identifier
           | PrintNode Node
           | MaccallNode Node Node
           | MacroNode Node
-          | KwargNode Identifier Node
           deriving (Eq)
 
 instance Show Node where
@@ -48,7 +47,6 @@ instance Show Node where
   show (FuncallNode a b) = concat ["!funcall", (indent2 $ show a), (indent2 $ show b)]
   show (MaccallNode a b) = concat ["#maccall", (indent2 $ show a), (indent2 $ show b)]
   show (MacroNode a) = concat ["#{", (indent2 $ show a ++ "\n}")]
-  show (KwargNode kw arg) = concat ["Kwarg ", show kw, " = ", (indent2 $ show arg)]
   show (PrintNode a) = concat ["!print", (indent2 $ show a)]
 
 indent :: String -> String -> String
@@ -258,21 +256,12 @@ parseBracketMaccall = parseBracket <|> parseVMInst <|> parseId <|> parseNumber
                                     }
                           parseBracket = bracket "[" "]" <|>
                                        bracket "(" ")"
-parseDollarPref = parseDollarPref' <|> parseKeywordArgument
+parseDollarPref = parseDollarPref' <|> parseLambdaSyntax
                 <?> "dollar preferences"
                 where parseDollarPref' = try $ do
                                        string "$"
                                        skipSpaces
                                        parseMaccall >>= return
-
-parseKeywordArgument = parseKeywordArgument' <|> parseLambdaSyntax
-                     <?> "keyword argument"
-                     where parseKeywordArgument' = try $ do
-                                                 kw <- parseIdAsIdentifier
-                                                 string ":"
-                                                 requireSpaces
-                                                 arg <- parseExpr
-                                                 return $ KwargNode kw arg
 
 parseLambdaSyntax :: Parser Node
 parseLambdaSyntax = parseEqualArrow <|> parseComma <|> parseBracketMaccall
