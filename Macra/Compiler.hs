@@ -58,12 +58,24 @@ macroExpand' mm cxtId node@(SymNode macroId) =
   case M.lookup (cxtId, macroId) mm of
     Just macro -> macro
     Nothing -> ([], [], node)
+macroExpand' mm cxtId node@(CharNode _) = ([], [], node)
+macroExpand' mm cxtId node@(NumNode _) = ([], [], node)
+macroExpand' mm cxtId node@(ListNode xs) =
+             ([], [], ListNode $ map (macroArgExpand mm cxtId) xs)
 macroExpand' mm cxtId node@(PrintNode expr) =
   ([], [], PrintNode $ macroArgExpand mm toplevelContext expr)
 macroExpand' mm cxtId node@(IfNode condExp thenExp elseExp) =
   ([], [], IfNode (macroArgExpand mm toplevelContext condExp)
                   (macroArgExpand mm toplevelContext thenExp)
                   (macroArgExpand mm toplevelContext elseExp))
+macroExpand' mm cxtId node@(LambdaNode param body) =
+  ([], [], LambdaNode param
+                      (macroArgExpand mm toplevelContext body))
+macroExpand' mm cxtId node@(DefineNode id expr) =
+  ([], [], DefineNode id
+                      (macroArgExpand mm toplevelContext expr))
+macroExpand' mm cxtId node@(FuncallNode a b) =
+  macroExpand' mm cxtId (MaccallNode a b)
 macroExpand' mm cxtId node@(MaccallNode a b) =
   case macroExpand' mm cxtId a of
     ([], [], fn) ->
@@ -76,7 +88,6 @@ macroExpand' mm cxtId node@(MaccallNode a b) =
         , (MacroNode (macroReplace param
                                    macroNode
                                    (macroArgExpand mm cxt b))))
-macroExpand' mm cxtId node = ([], [], node)
 
 macroReplace :: P.Identifier -> Node -> Node -> Node
 macroReplace param node@(MacroNode _) arg = node
@@ -85,7 +96,6 @@ macroReplace param node@(SymNode sym) arg
              | otherwise = node
 macroReplace param node@(CharNode _) arg = node
 macroReplace param node@(NumNode _) arg = node
-macroReplace param node@(ListNode []) arg = node
 macroReplace param node@(ListNode nodes) arg =
              ListNode $ map (flip (macroReplace param) arg) nodes
 macroReplace param node@(FuncallNode a b) arg =
