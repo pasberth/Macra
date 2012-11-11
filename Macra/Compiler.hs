@@ -178,3 +178,6 @@ compileNode (MaccallNode a b) next =
 compileNode (PrintNode argument) next =
   compileNode argument $ PrintInst next
 compileNode (MacroNode node) next = compileNode node next
+compileNode (ConsNode a b) next = compileNode a (ArgInst (compileNode b (ConsInst next)))
+compileNode (CarNode node) next = compileNode node (CarInst next)
+compileNode (CdrNode node) next = compileNode node (CdrInst next)

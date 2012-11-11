@@ -19,6 +19,9 @@ instance Show Value where
 type Identifier = String
 data Inst = FrameInst  Inst       Inst           --hasnext
           | ConstExpr  Value      Inst           --hasnext
+          | ConsInst   Inst                      --hasnext
+          | CarInst    Inst                      --hasnext
+          | CdrInst    Inst                      --hasnext
           | ArgInst    Inst                      --hasnext
           | CloseInst  Identifier Inst Inst      --hasnext
           | ApplyInst
@@ -97,6 +100,46 @@ vm'' vmState@(VM a (ConstExpr val nxt) e r s _) = do
           , vmInst = nxt
             }
       vm'
+vm'' vmState@(VM a (ConsInst nxt) e (atom:r) s _) = do
+     case a of
+       List list -> do
+            S.put vmState {
+                  vmAcc = List (atom:list)
+                , vmRib = r
+                , vmInst = nxt
+                  }
+            vm'
+       val -> do
+         S.liftIO $ putStr $ concat [ "invalid list: ", show val ]
+         return ()
+vm'' vmState@(VM a (CarInst nxt) e r s _) = do
+     case a of
+       List (x:xs) -> do
+            S.put vmState {
+                  vmAcc = x
+                , vmInst = nxt
+                  }
+            vm'
+       List [] -> do
+         S.liftIO $ putStr $ concat [ "!car nil" ]
+         return ()
+       val -> do
+         S.liftIO $ putStr $ concat [ "invalid list: ", show val ]
+         return ()
+vm'' vmState@(VM a (CdrInst nxt) e r s _) = do
+     case a of
+       List (x:xs) -> do
+            S.put vmState {
+                  vmAcc = List xs
+                , vmInst = nxt
+                  }
+            vm'
+       List [] -> do
+         S.liftIO $ putStr $ concat [ "!cdr nil" ]
+         return ()
+       val -> do
+         S.liftIO $ putStr $ concat [ "invalid list: ", show val ]
+         return ()
 vm'' vmState@(VM a (PrintInst nxt) e r s _) = do
       S.liftIO $ print a
       S.put vmState {
