@@ -1,0 +1,6 @@
+!print 
+  !funcall 
+    !lambda A A 
+    !funcall 
+      !lambda A A
+      2

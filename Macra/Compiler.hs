@@ -156,7 +156,7 @@ compile mm [] = Right HaltInst
 compileNode :: Node -> Inst -> Inst
 
 compileNode (SymNode symbol) next =
-  ReferInst symbol next
+  ReferInst symbol (ThawInst next) --Refer returns a thunk. Thaw extracs the thunk
 compileNode (CharNode chr) next =
   ConstExpr (VM.Char chr) next
 compileNode (NumNode num) next =
@@ -172,7 +172,9 @@ compileNode (LambdaNode param expr) next =
 compileNode (DefineNode var val) next =
   compileNode val $ DefineInst var next
 compileNode (FuncallNode lambda argument) next = 
-  FrameInst next (compileNode argument (ArgInst (compileNode lambda ApplyInst)))
+  -- Save call-frame before funcalling. funcall applies `lambda` to `argument`
+  -- Freeze the argument to create a thunk. (Lazy evaluation)
+  FrameInst next (FreezeInst (compileNode argument HaltInst) (ArgInst (compileNode lambda ApplyInst)))
 compileNode (MaccallNode a b) next =
   compileNode (FuncallNode a b) next
 compileNode (PrintNode argument) next =
