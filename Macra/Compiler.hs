@@ -83,8 +83,16 @@ macroReplace param node@(MacroNode _) arg = node
 macroReplace param node@(SymNode sym) arg
              | param == sym = arg
              | otherwise = node
+macroReplace param node@(CharNode _) arg = node
+macroReplace param node@(NumNode _) arg = node
+macroReplace param node@(ListNode []) arg = node
+macroReplace param node@(ListNode nodes) arg =
+             ListNode $ map (flip (macroReplace param) arg) nodes
 macroReplace param node@(FuncallNode a b) arg =
              FuncallNode (macroReplace param a arg)
+                         (macroReplace param b arg)
+macroReplace param node@(MaccallNode a b) arg =
+             MaccallNode (macroReplace param a arg)
                          (macroReplace param b arg)
 macroReplace param node@(IfNode a b c) arg =
              IfNode (macroReplace param a arg)
@@ -96,7 +104,8 @@ macroReplace param node@(LambdaNode var body) arg =
 macroReplace param node@(DefineNode id expr) arg =
              DefineNode (macroReplaceSym param id arg)
                         (macroReplace param expr arg)
-macroReplace param node arg = node
+macroReplace param node@(PrintNode expr) arg =
+             PrintNode (macroReplace param expr arg)
 
 macroReplaceSym :: P.Identifier -> P.Identifier -> Node -> P.Identifier
 macroReplaceSym param var (P.SymNode arg)
