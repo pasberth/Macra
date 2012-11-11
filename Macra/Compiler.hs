@@ -7,6 +7,7 @@ module Macra.Compiler (MacroMap,
 
 import qualified Data.Map as M
 import qualified Control.Monad.State as S
+import Control.Applicative
 import Macra.Parser hiding (Identifier)
 import Macra.VM hiding (Identifier)
 import qualified Macra.Parser as P
@@ -62,43 +63,22 @@ macroExpand' mm cxtId node@(SymNode macroId) =
 macroExpand' mm cxtId node@(CharNode _) = Right ([], [], node)
 macroExpand' mm cxtId node@(NumNode _) = Right ([], [], node)
 macroExpand' mm cxtId node@(PrintNode expr) =
-  case macroExpand mm expr of
-    Right expr -> Right ([], [], PrintNode expr)
-    Left err -> Left err
+  pure (\expr -> ([], [], PrintNode expr)) <*> macroExpand mm expr
 macroExpand' mm cxtId (ConsNode a b) =
-  case (macroExpand mm a) of
-    Right a ->
-      case (macroExpand mm b) of
-        Right b -> Right ([], [], ConsNode a b)
-        Left err -> Left err
-    Left err -> Left err
+  pure (\a b -> ([], [], ConsNode a b)) <*> (macroExpand mm a) <*> (macroExpand mm b)
 macroExpand' mm cxtId (CarNode a) =
-  case (macroExpand mm a) of
-    Right a -> Right ([], [], CarNode a)
-    Left err -> Left err
+  pure (\a -> ([], [], CarNode a)) <*> (macroExpand mm a)
 macroExpand' mm cxtId (CdrNode a) =
-  case (macroExpand mm a) of
-    Right a -> Right ([], [], CdrNode a)
-    Left err -> Left err
+  pure (\a -> ([], [], CdrNode a)) <*> (macroExpand mm a)
 macroExpand' mm cxtId node@(IfNode condExp thenExp elseExp) =
-  case (macroExpand mm condExp) of
-    Right condExp ->
-      case (macroExpand mm thenExp) of
-        Right thenExp ->
-          case (macroExpand mm elseExp) of
-            Right elseExp ->
-              Right ([], [], IfNode condExp thenExp elseExp)
-            Left err -> Left err
-        Left err -> Left err
-    Left err -> Left err
+  pure (\a b c -> ([], [], IfNode a b c)) <*> macroExpand mm condExp
+                                          <*> macroExpand mm thenExp
+                                          <*> macroExpand mm elseExp
 macroExpand' mm cxtId node@(LambdaNode param body) =
-  case (macroExpand mm body) of
-    Right body -> Right ([], [], LambdaNode param body)
-    Left err -> Left err
+  pure (\body -> ([], [], LambdaNode param body)) <*> macroExpand mm body
+
 macroExpand' mm cxtId node@(DefineNode id expr) =
-  case (macroExpand mm expr) of
-    Right expr -> Right ([], [], DefineNode id expr)
-    Left err -> Left err
+  pure (\expr -> ([], [], DefineNode id expr)) <*> macroExpand mm expr
 macroExpand' mm cxtId node@(FuncallNode a b) =
   macroExpand' mm cxtId (MaccallNode a b)
 macroExpand' mm cxtId node@(MaccallNode a b) =
