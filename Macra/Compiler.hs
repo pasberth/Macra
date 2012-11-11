@@ -64,6 +64,13 @@ macroExpand' mm cxtId node@(ListNode xs) =
              ([], [], ListNode $ map (macroArgExpand mm cxtId) xs)
 macroExpand' mm cxtId node@(PrintNode expr) =
   ([], [], PrintNode $ macroArgExpand mm toplevelContext expr)
+macroExpand' mm cxtId (ConsNode a b) =
+  ([], [], ConsNode (macroArgExpand mm toplevelContext a)
+                    (macroArgExpand mm toplevelContext b))
+macroExpand' mm cxtId (CarNode a) =
+  ([], [], CarNode (macroArgExpand mm toplevelContext a))
+macroExpand' mm cxtId (CdrNode a) =
+  ([], [], CdrNode (macroArgExpand mm toplevelContext a))
 macroExpand' mm cxtId node@(IfNode condExp thenExp elseExp) =
   ([], [], IfNode (macroArgExpand mm toplevelContext condExp)
                   (macroArgExpand mm toplevelContext thenExp)
@@ -116,6 +123,13 @@ macroReplace param node@(DefineNode id expr) arg =
                         (macroReplace param expr arg)
 macroReplace param node@(PrintNode expr) arg =
              PrintNode (macroReplace param expr arg)
+macroReplace param node@(ConsNode a b) arg =
+             ConsNode (macroReplace param a arg)
+                      (macroReplace param b arg)
+macroReplace param node@(CarNode a) arg =
+             CarNode (macroReplace param a arg)
+macroReplace param (CdrNode a) arg =
+             CdrNode (macroReplace param a arg)
 
 macroReplaceSym :: P.Identifier -> P.Identifier -> Node -> P.Identifier
 macroReplaceSym param var (P.SymNode arg)
