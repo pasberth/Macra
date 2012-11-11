@@ -62,6 +62,11 @@ macroExpand' mm cxtId node@(SymNode macroId) =
 
 macroExpand' mm cxtId node@(CharNode _) = Right ([], [], node)
 macroExpand' mm cxtId node@(NumNode _) = Right ([], [], node)
+macroExpand' mm cxtId node@(ListNode list) =
+  pure (\list -> ([], [], ListNode list))
+  <*> (foldr (\node r -> pure (\nodes node -> (node:nodes)) <*> r <*> macroExpand mm node)
+             (Right [])
+             list)
 macroExpand' mm cxtId node@(PrintNode expr) =
   pure (\expr -> ([], [], PrintNode expr)) <*> macroExpand mm expr
 macroExpand' mm cxtId (ConsNode a b) =
@@ -162,8 +167,10 @@ compileNode (CharNode chr) next =
   ConstExpr (VM.Char chr) next
 compileNode (NumNode num) next =
   ConstExpr (VM.Double num) next
-{-compile (ListNode [node]) nil next =
-  ConstExpr (List [Char node]) next-}
+compileNode (ListNode nodes) next =
+  (foldr (\atom list -> (\next -> compileNode atom (ArgInst (list (ConsInst next)))))
+         (ConstExpr (VM.List []))
+         nodes) next
 compileNode (IfNode condExp thenExp elseExp) next =
   compileNode condExp $
     TestInst (compileNode thenExp next)
