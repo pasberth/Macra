@@ -51,6 +51,9 @@ instance Show Node where
   show (MaccallNode a b) = concat ["#maccall", (indent2 $ show a), (indent2 $ show b)]
   show (MacroNode a) = concat ["#{", (indent2 $ show a ++ "\n}")]
   show (PrintNode a) = concat ["!print", (indent2 $ show a)]
+  show (ConsNode a b) = concat ["!cons", (indent2 $ show a), (indent2 $ show b)]
+  show (CarNode a) = concat ["!car", show a]
+  show (CdrNode a) = concat ["!cdr", show a]
 
 indent :: String -> String -> String
 indent idt node = foldl (\str x -> concat [str, "\n", idt,  x]) "" (lines node)
