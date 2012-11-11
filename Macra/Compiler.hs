@@ -97,6 +97,7 @@ macroExpand' mm cxtId node@(MaccallNode a b) =
                 , (MacroNode (macroReplace param
                                            macroNode
                                            b)))
+        Right macro -> Left (ExpandArgumentError macro)
         Left err -> Left err
     l@(Left _) -> l
 
