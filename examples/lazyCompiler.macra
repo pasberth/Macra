@@ -1,6 +1,4 @@
-!print 
-  !funcall 
-    !lambda A A 
-    !funcall 
-      !lambda A A
-      2
+!print
+  !funcall
+    !lambda A 1
+    !print 12345
