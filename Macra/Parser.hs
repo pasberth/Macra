@@ -9,7 +9,7 @@ module Macra.Parser (Identifier(..),
 
 import Control.Monad
 import qualified Text.ParserCombinators.Parsec as P
-import Text.ParserCombinators.Parsec hiding (parse)
+import Text.ParserCombinators.Parsec hiding (parse, spaces)
 
 type Identifier = String
 data ToplevelNode = MacCxtTLNode MacCxtNode
@@ -140,9 +140,9 @@ parseProgram = do
 parseMacCxtStat :: Parser ToplevelNode
 parseMacCxtStat = parseMacDefTL
                 where parseMacDefTL = try $ do
+                                  skipSpaces
                                   macDef <- parseMacDef
                                   do { string ";"; return () } <|> do { eof; return () }
-                                  skipSpaces
                                   return $ MacCxtTLNode macDef
 
 parseMacSig :: Parser MacSig
@@ -230,6 +230,7 @@ parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
 
 parseEvalCxtStat :: Parser ToplevelNode
 parseEvalCxtStat = try $ do
+                 skipSpaces
                  expr <- parseMaccall
                  skipSpaces
                  do { string ";"; return () } <|> do { eof; return () }
@@ -388,5 +389,18 @@ parseVMCdr = try $ do
            a <- parseExpr
            return (CdrNode a)
 
-skipSpaces = skipMany (oneOf " \t\n") <?> "skipped spaces"
-requireSpaces = eof <|> (skipMany1 (oneOf " \t\n")) <?> "spaces"
+skipComment :: Parser ()
+skipComment = try $ do
+            string "----"
+            begMark <- many (char '-')
+            skip begMark
+            return ()
+            where skip begMark = do
+                       skipMany (noneOf "-")
+                       eof <|> (string ("----" ++ begMark) >> return ()) <|> skip begMark
+
+spaces = oneOf " \t\n"
+skipSpaces = skipMany ( (spaces >> return ()) <|>
+                        skipComment) <?> "skipped spaces"
+requireSpaces = eof <|> (skipMany1 ((spaces >> return ()) <|>
+                                     skipComment)) <?> "spaces"
