@@ -2,6 +2,7 @@ module Macra.VM (Value(..), Identifier(..), Inst(..), vm) where
 
 import qualified Data.Unique as U
 import qualified Data.Map as M
+import qualified Data.List as L
 import qualified Control.Monad.State as S
 
 data Value = Double Double
@@ -13,7 +14,7 @@ data Value = Double Double
 instance Show Value where
   show (Char c) = [c]
   show (Double i) = show i
-  show (List xs) = concat ["(", concat (map (\x -> (show x) ++ ";") xs), ")"]
+  show (List xs) = concat ["(", concat (L.intersperse " " (map show xs)), ")"]
   show (Closure var body e) = concat [show var, show body]
 
 type Identifier = String
