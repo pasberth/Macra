@@ -1,0 +1,18 @@
+(a) : toplevel -> toplevel
+    = a;
+
+def id fn : symbol -> function -> toplevel
+          = !define id fn;
+
+a => b : symbol -> toplevel -> function
+       = !lambda a b;
+
+a, b : symbol -> function -> function
+     = !lambda a b;
+
+def map f, xs =>
+  !if xs
+      (!cons (f !car xs) (map f (!cdr xs)))
+      nil;
+
+map (!lambda x !print x) !cons 1 !cons 2 !cons 3 nil;
