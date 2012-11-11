@@ -14,8 +14,13 @@ import qualified Macra.VM as VM
 
 type MacroMap = M.Map (P.CxtId, P.Identifier) Macro
 type Macro = (MacSig, MacParams, Node)
-data CompileError = CompileError deriving (Eq, Show)
-data ExpandError = ExpandError deriving (Eq, Show)
+data CompileError = CompileError
+                  | CompileExpandError ExpandError
+                  deriving (Eq, Show)
+
+data ExpandError = ExpandError
+                 | ExpandArgumentError Macro
+                 deriving (Eq, Show)
 
 toplevelContext :: P.CxtId
 toplevelContext = "toplevel"
@@ -44,57 +49,76 @@ macroDefineMacCxtNode mm (MacDef2MNode id sig params) =
 macroExpand :: MacroMap -> Node -> Either ExpandError Node
 macroExpand mm node =
   case macroExpand' mm toplevelContext node of
-    ([], [], node) -> Right node
-    otherwise -> Left ExpandError
+    Right ([], [], node) -> Right node
+    Right macro -> Left $ ExpandArgumentError macro
+    Left err -> Left err
 
-macroArgExpand :: MacroMap -> P.CxtId -> Node -> Node
-macroArgExpand mm cxtId node =
-  case macroExpand' mm cxtId node of
-    ([], [], node) -> node
-    -- otherwise -> Left ExpandError
-
-macroExpand' :: MacroMap -> P.CxtId -> Node -> Macro
+macroExpand' :: MacroMap -> P.CxtId -> Node -> Either ExpandError Macro
 macroExpand' mm cxtId node@(SymNode macroId) =
   case M.lookup (cxtId, macroId) mm of
-    Just macro -> macro
-    Nothing -> ([], [], node)
-macroExpand' mm cxtId node@(CharNode _) = ([], [], node)
-macroExpand' mm cxtId node@(NumNode _) = ([], [], node)
-macroExpand' mm cxtId node@(ListNode xs) =
-             ([], [], ListNode $ map (macroArgExpand mm cxtId) xs)
+    Just macro -> Right macro
+    Nothing -> Right ([], [], node)
+
+macroExpand' mm cxtId node@(CharNode _) = Right ([], [], node)
+macroExpand' mm cxtId node@(NumNode _) = Right ([], [], node)
 macroExpand' mm cxtId node@(PrintNode expr) =
-  ([], [], PrintNode $ macroArgExpand mm toplevelContext expr)
+  case macroExpand mm expr of
+    Right expr -> Right ([], [], PrintNode expr)
+    Left err -> Left err
 macroExpand' mm cxtId (ConsNode a b) =
-  ([], [], ConsNode (macroArgExpand mm toplevelContext a)
-                    (macroArgExpand mm toplevelContext b))
+  case (macroExpand mm a) of
+    Right a ->
+      case (macroExpand mm b) of
+        Right b -> Right ([], [], ConsNode a b)
+        Left err -> Left err
+    Left err -> Left err
 macroExpand' mm cxtId (CarNode a) =
-  ([], [], CarNode (macroArgExpand mm toplevelContext a))
+  case (macroExpand mm a) of
+    Right a -> Right ([], [], CarNode a)
+    Left err -> Left err
 macroExpand' mm cxtId (CdrNode a) =
-  ([], [], CdrNode (macroArgExpand mm toplevelContext a))
+  case (macroExpand mm a) of
+    Right a -> Right ([], [], CdrNode a)
+    Left err -> Left err
 macroExpand' mm cxtId node@(IfNode condExp thenExp elseExp) =
-  ([], [], IfNode (macroArgExpand mm toplevelContext condExp)
-                  (macroArgExpand mm toplevelContext thenExp)
-                  (macroArgExpand mm toplevelContext elseExp))
+  case (macroExpand mm condExp) of
+    Right condExp ->
+      case (macroExpand mm thenExp) of
+        Right thenExp ->
+          case (macroExpand mm elseExp) of
+            Right elseExp ->
+              Right ([], [], IfNode condExp thenExp elseExp)
+            Left err -> Left err
+        Left err -> Left err
+    Left err -> Left err
 macroExpand' mm cxtId node@(LambdaNode param body) =
-  ([], [], LambdaNode param
-                      (macroArgExpand mm toplevelContext body))
+  case (macroExpand mm body) of
+    Right body -> Right ([], [], LambdaNode param body)
+    Left err -> Left err
 macroExpand' mm cxtId node@(DefineNode id expr) =
-  ([], [], DefineNode id
-                      (macroArgExpand mm toplevelContext expr))
+  case (macroExpand mm expr) of
+    Right expr -> Right ([], [], DefineNode id expr)
+    Left err -> Left err
 macroExpand' mm cxtId node@(FuncallNode a b) =
   macroExpand' mm cxtId (MaccallNode a b)
 macroExpand' mm cxtId node@(MaccallNode a b) =
   case macroExpand' mm cxtId a of
-    ([], [], fn) ->
-        ( []
-        , []
-        , FuncallNode fn (macroArgExpand mm toplevelContext b))
-    (cxt:sig, param:params, (MacroNode macroNode)) ->
-        ( sig
-        , params
-        , (MacroNode (macroReplace param
-                                   macroNode
-                                   (macroArgExpand mm cxt b))))
+    Right ([], [], fn) ->
+      case (macroExpand mm b) of
+        Right b -> Right ( []
+                         , []
+                         , FuncallNode fn b)
+        Left err -> Left err
+    Right (cxt:sig, param:params, (MacroNode macroNode)) ->
+      case (macroExpand' mm cxt b) of
+        Right ([], [], b) ->
+          Right ( sig
+                , params
+                , (MacroNode (macroReplace param
+                                           macroNode
+                                           b)))
+        Left err -> Left err
+    l@(Left _) -> l
 
 macroReplace :: P.Identifier -> Node -> Node -> Node
 macroReplace param node@(MacroNode _) arg = node
@@ -145,7 +169,7 @@ compile mm ((EvalCxtTLNode x):xs) =
             case (compile mm xs) of
               Right insts -> Right $ compileNode node insts
               l@(Left err) -> l
-          Left err -> Left $ CompileError
+          Left err -> Left (CompileExpandError err)
 compile mm [] = Right HaltInst
 
 
