@@ -32,6 +32,9 @@ data Node = SymNode Identifier
           | DefineNode Identifier Node
           | FuncallNode Node Node
           | PrintNode Node
+          | ConsNode Node Node
+          | CarNode Node
+          | CdrNode Node
           | MaccallNode Node Node
           | MacroNode Node
           deriving (Eq)
@@ -301,7 +304,7 @@ parseComma = try (do
            ) <?> "`,'"
 
 parseVMInst :: Parser Node
-parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMDefine <|> parseVMFuncall <|> parseVMPrint
+parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMDefine <|> parseVMFuncall <|> parseVMPrint <|> parseVMCons <|> parseVMCar <|> parseVMCdr
 
 parseVMIf :: Parser Node
 parseVMIf = try $ do
@@ -347,6 +350,29 @@ parseVMPrint = try $ do
              requireSpaces
              a <- parseExpr
              return (PrintNode a)
+
+parseVMCons :: Parser Node
+parseVMCons = try $ do
+            string "!cons"
+            requireSpaces
+            a <- parseExpr
+            requireSpaces
+            b <- parseExpr
+            return (ConsNode a b)
+
+parseVMCar :: Parser Node
+parseVMCar = try $ do
+           string "!car"
+           requireSpaces
+           a <- parseExpr
+           return (CarNode a)
+
+parseVMCdr :: Parser Node
+parseVMCdr = try $ do
+           string "!cdr"
+           requireSpaces
+           a <- parseExpr
+           return (CdrNode a)
 
 skipSpaces = skipMany (oneOf " \t\n") <?> "skipped spaces"
 requireSpaces = eof <|> (skipMany1 (oneOf " \t\n")) <?> "spaces"
