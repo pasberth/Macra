@@ -7,6 +7,7 @@ module Macra.Parser (Identifier(..),
                      MacParams,
                      parse) where
 
+import Control.Monad
 import qualified Text.ParserCombinators.Parsec as P
 import Text.ParserCombinators.Parsec hiding (parse)
 
@@ -94,6 +95,16 @@ parseId :: Parser Node
 parseId = try $ do
         id <- parseIdAsIdentifier
         return $ SymNode id
+
+parseString :: Parser Node
+parseString = liftM ListNode (between (char '"') (char '"') (many parseChar)) <?> "a string"
+            where parseChar :: Parser Node
+                  parseChar = liftM CharNode (try (string "\\\"" >> return '"')
+                                             <|> noneOf ['"'])
+
+parseChar :: Parser Node
+parseChar = liftM CharNode (prefix >> anyChar)
+          where prefix = try $ string "$'"
 
 parseNumber :: Parser Node
 parseNumber = parseFloatNum <|> parseIntNumAsFloat <?> "a number"
@@ -261,7 +272,7 @@ parseMaccall = parseMaccall' <?> "one of prefix/infix/suffix"
                                  return $ foldl (\expr sfx -> sfx expr) expr1 sfxes
 
 parseBracketMaccall :: Parser Node
-parseBracketMaccall = parseBracket <|> parseVMInst <|> parseId <|> parseNumber
+parseBracketMaccall = parseBracket <|> parseVMInst <|> parseString <|> parseChar <|> parseId <|> parseNumber
                     where bracket beg end = try $ do {
                                         string beg
                                         ; arg1 <- try $ do { skipSpaces; parseMaccall >>= return }
