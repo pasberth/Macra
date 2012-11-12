@@ -1,2 +1,8 @@
+#[ (a) : toplevel -> toplevel
+       = a ]
+
+#[ a; b : toplevel -> toplevel -> toplevel
+        = !do a b ]
+
 !define blackhole !lambda x blackhole;
-!print $ blackhole 1 2 3 4
+!print (blackhole 1 2 3 4)
