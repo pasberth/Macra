@@ -394,11 +394,14 @@ skipComment :: Parser ()
 skipComment = try $ do
             string "----"
             begMark <- many (char '-')
-            skip begMark
+            skip ("----" ++ begMark)
             return ()
             where skip begMark = do
                        skipMany (noneOf "-")
-                       eof <|> (string ("----" ++ begMark) >> return ()) <|> skip begMark
+                       endMark <- many (char '-')
+                       if begMark == endMark
+                         then return ()
+                         else skip begMark
 
 spaces = oneOf " \t\n"
 skipSpaces = skipMany ( (spaces >> return ()) <|>
