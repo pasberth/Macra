@@ -1,3 +1,5 @@
+#[ a; b : toplevel -> toplevel -> toplevel
+        = !do a b ]
   --------
   開始記号は 4+n つの `-' の記号です。
   閉じ記号は同じ数の `-' の記号です。
