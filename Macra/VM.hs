@@ -208,16 +208,18 @@ vm'' vmState@(VM a ApplyInst _ (val:r) s mem) = do
 
 -- ThawInst thaws thunks
 -- Call-by-name strategy thaws the thunk everytime the name is seen
-vm'' vmState@(VM a (ThawInst nxt) _ (val:r) s mem) = do
+vm'' vmState@(VM a (ThawInst nxt) fnEnvRef _ _ mem) = do
   case a of
     (Thunk body envRef) -> do
       S.put vmState {
-            vmInst = body  -- evaluate the thunk
+          vmInst = body  -- evaluate the thunk
+        , vmEnvRef = envRef
       }
       vm'
       newVMState <- S.get
       S.put newVMState {
             vmInst = nxt   -- go to next instruction with the evaluated thunk on the accum
+          , vmEnvRef = fnEnvRef
       }
       vm'
     _ -> do
