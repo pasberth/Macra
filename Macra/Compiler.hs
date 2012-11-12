@@ -47,9 +47,9 @@ macroDefineMacCxtNode mm (MacDef2MNode id sig params) =
         recur f params = (FuncallNode (recur f (init params))
                                       (SymNode (last params)))
 
-macroExpand :: MacroMap -> Node -> Either ExpandError Node
-macroExpand mm node =
-  case macroExpand' mm toplevelContext node of
+macroExpand :: MacroMap -> P.CxtId -> Node -> Either ExpandError Node
+macroExpand mm cxt node =
+  case macroExpand' mm cxt node of
     Right ([], [], node) -> Right node
     Right macro -> Left $ ExpandArgumentError macro
     Left err -> Left err
@@ -64,41 +64,34 @@ macroExpand' mm cxtId node@(SymNode macroId) =
 macroExpand' mm cxtId node@(CharNode _) = Right ([], [], node)
 macroExpand' mm cxtId node@(NumNode _) = Right ([], [], node)
 macroExpand' mm cxtId node@(PrintNode expr) =
-  pure (\expr -> ([], [], PrintNode expr)) <*> macroExpand mm expr
+  pure (\expr -> ([], [], PrintNode expr)) <*> macroExpand mm toplevelContext expr
 macroExpand' mm cxtId (ConsNode a b) =
-  pure (\a b -> ([], [], ConsNode a b)) <*> (macroExpand mm a) <*> (macroExpand mm b)
+  pure (\a b -> ([], [], ConsNode a b)) <*> (macroExpand mm toplevelContext a)
+                                        <*> (macroExpand mm toplevelContext b)
 macroExpand' mm cxtId (CarNode a) =
-  pure (\a -> ([], [], CarNode a)) <*> (macroExpand mm a)
+  pure (\a -> ([], [], CarNode a)) <*> (macroExpand mm toplevelContext a)
 macroExpand' mm cxtId (CdrNode a) =
-  pure (\a -> ([], [], CdrNode a)) <*> (macroExpand mm a)
+  pure (\a -> ([], [], CdrNode a)) <*> (macroExpand mm toplevelContext a)
 macroExpand' mm cxtId node@(IfNode condExp thenExp elseExp) =
-  pure (\a b c -> ([], [], IfNode a b c)) <*> macroExpand mm condExp
-                                          <*> macroExpand mm thenExp
-                                          <*> macroExpand mm elseExp
+  pure (\a b c -> ([], [], IfNode a b c)) <*> macroExpand mm toplevelContext condExp
+                                          <*> macroExpand mm toplevelContext thenExp
+                                          <*> macroExpand mm toplevelContext elseExp
 macroExpand' mm cxtId node@(LambdaNode param body) =
-  pure (\body -> ([], [], LambdaNode param body)) <*> macroExpand mm body
+  pure (\body -> ([], [], LambdaNode param body)) <*> macroExpand mm toplevelContext body
 
 macroExpand' mm cxtId node@(DefineNode id expr) =
-  pure (\expr -> ([], [], DefineNode id expr)) <*> macroExpand mm expr
+  pure (\expr -> ([], [], DefineNode id expr)) <*> macroExpand mm toplevelContext expr
 macroExpand' mm cxtId node@(FuncallNode a b) =
   case macroExpand' mm cxtId a of
+    Left err -> Left err
     Right ([], [], fn) ->
-      case (macroExpand mm b) of
-        Right b -> Right ( []
-                         , []
-                         , FuncallNode fn b)
-        Left err -> Left err
+      pure (\b -> ([], [], FuncallNode fn b)) <*> macroExpand mm toplevelContext b
     Right (cxt:sig, param:params, (MacroNode macroNode)) ->
-      case (macroExpand' mm cxt b) of
-        Right ([], [], b) ->
-          Right ( sig
-                , params
-                , (MacroNode (macroReplace param
-                                           macroNode
-                                           b)))
-        Right macro -> Left (ExpandArgumentError macro)
-        Left err -> Left err
-    l@(Left _) -> l
+      pure (\b -> ( sig
+                  , params
+                  , (MacroNode (macroReplace param
+                                             macroNode
+                                             b)))) <*> (macroExpand mm cxt b)
 
 macroReplace :: P.Identifier -> Node -> Node -> Node
 macroReplace param node@(MacroNode _) arg = node
@@ -139,7 +132,7 @@ macroReplaceSym param var arg = var
 compile :: MacroMap -> [ToplevelNode] -> Either CompileError Inst 
 compile mm ((MacCxtTLNode x):xs) = compile mm xs
 compile mm ((EvalCxtTLNode x):xs) =
-        case  (macroExpand mm x) of
+        case  (macroExpand mm toplevelContext x) of
           Right node ->
             case (compile mm xs) of
               Right insts -> Right $ compileNode node insts
