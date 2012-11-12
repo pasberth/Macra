@@ -1,20 +1,20 @@
 !define cons
-   !lambda head1
-     !lambda tail1
+   !lambda head
+     !lambda tail
        !lambda f
-         !funcall !funcall f head1 tail1;
+         !funcall !funcall f head tail;
 
 !define car
-  !lambda lis1
-    !funcall lis1 !lambda head2
-      !lambda tail2
-        head2;
+  !lambda lis
+    !funcall lis !lambda head
+      !lambda tail
+        head;
 
 !define cdr
-  !lambda lis2
-    !funcall lis2 !lambda head3
-      !lambda tail3
-        tail3;
+  !lambda lis
+    !funcall lis !lambda head
+      !lambda tail
+        tail;
 
 !define aList 
   !funcall !funcall cons 3 !funcall !funcall cons 2 !funcall !funcall cons 1 0;
