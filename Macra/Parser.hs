@@ -36,6 +36,7 @@ data Node = SymNode Identifier
           | ConsNode Node Node
           | CarNode Node
           | CdrNode Node
+          | DoNode Node Node
           | MacroNode Node
           deriving (Eq)
 
@@ -188,7 +189,7 @@ parseMacDef = parseMacDef2 <|> parseMacDef1 <?> "macro defination"
                                requireSpaces
                                string "="
                                requireSpaces
-                               defi <- parseMaccall
+                               defi <- parseSemicolon
                                return $ MacDef1MNode id sig params (MacroNode defi)
 
 parseMacDefIdAndParams :: Parser (Identifier, MacParams)
@@ -232,17 +233,26 @@ parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
 parseEvalCxtStat :: Parser ToplevelNode
 parseEvalCxtStat = try $ do
                  skipSpaces
-                 expr <- parseMaccall
-                 skipSpaces
-                 do { string ";"; return () } <|> do { eof; return () }
+                 expr <- parseSemicolon
                  skipSpaces
                  return $ EvalCxtTLNode expr
 
 parseExpr :: Parser Node
-parseExpr = parseDollarPref <?> "a expression"
+parseExpr = parseLambdaSyntax <?> "a expression"
 
-a :: (Node -> Node) -> Node -> Node -> Node
-a f n m = FuncallNode (f n) m
+parseSemicolon :: Parser Node
+parseSemicolon = parseSemicolon' <|> parseMaccall
+               where parseSemicolon' = try $ do
+                                     expr1 <- parseMaccall
+                                     skipSpaces
+                                     string ";"
+                                     skipSpaces
+                                     expr2 <- parseSemicolon
+                                     return (FuncallNode
+                                              (FuncallNode
+                                                (SymNode ";")
+                                                expr1)
+                                              expr2)
 
 parseMaccall :: Parser Node
 parseMaccall = parseMaccall' <?> "one of prefix/infix/suffix"
@@ -256,6 +266,8 @@ parseMaccall = parseMaccall' <?> "one of prefix/infix/suffix"
                            id <- parseMark
                            skipSpaces
                            return $ a (FuncallNode id)
+                   a :: (Node -> Node) -> Node -> Node -> Node
+                   a f n m = FuncallNode (f n) m
                    suffixOp = try $ do
                             skipSpaces
                             string "@"
@@ -265,7 +277,7 @@ parseMaccall = parseMaccall' <?> "one of prefix/infix/suffix"
                                  expr1 <- parseLambdaSyntax
                                  sfxes <- many ((try $ do {
                                        op <- maccall
-                                       ; expr2 <- parseDollarPref
+                                       ; expr2 <- parseLambdaSyntax
                                        ; return $ (\node -> op node expr2)
                                        }) <|> (try $ do {
                                          op <- suffixOp
@@ -277,24 +289,14 @@ parseBracketMaccall :: Parser Node
 parseBracketMaccall = parseBracket <|> parseVMInst <|> parseString <|> parseChar <|> parseId <|> parseNumber
                     where bracket beg end = try $ do {
                                         string beg
-                                        ; arg1 <- try $ do { skipSpaces; parseMaccall >>= return }
-                                        ; args <- (many $ do {
-                                                        skipSpaces
-                                                        ; string ";"
-                                                        ; skipSpaces
-                                                        ;  parseMaccall >>= return })
+                                        ; skipSpaces
+                                        ; expr <- parseSemicolon
                                         ; skipSpaces
                                         ; string end
-                                        ; return $ foldl (\a b -> FuncallNode a b) (SymNode beg) (arg1:args)
+                                        ; return (FuncallNode (SymNode beg) expr)
                                     }
                           parseBracket = bracket "[" "]" <|>
                                        bracket "(" ")"
-parseDollarPref = parseDollarPref' <|> parseLambdaSyntax
-                <?> "dollar preferences"
-                where parseDollarPref' = try $ do
-                                       string "$"
-                                       skipSpaces
-                                       parseMaccall >>= return
 
 parseLambdaSyntax :: Parser Node
 parseLambdaSyntax = parseEqualArrow <|> parseComma <|> parseBracketMaccall
@@ -320,7 +322,7 @@ parseComma = try (do
            ) <?> "`,'"
 
 parseVMInst :: Parser Node
-parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMDefine <|> parseVMFuncall <|> parseVMPrint <|> parseVMCons <|> parseVMCar <|> parseVMCdr
+parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMDefine <|> parseVMFuncall <|> parseVMPrint <|> parseVMCons <|> parseVMCar <|> parseVMCdr <|> parseVMDo
 
 parseVMIf :: Parser Node
 parseVMIf = try $ do
@@ -389,6 +391,14 @@ parseVMCdr = try $ do
            requireSpaces
            a <- parseExpr
            return (CdrNode a)
+
+parseVMDo = try $ do
+          string "!do"
+          requireSpaces
+          a <- parseExpr
+          requireSpaces
+          b <- parseExpr
+          return (DoNode a b)
 
 skipComment :: Parser ()
 skipComment = try $ do
