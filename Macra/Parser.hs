@@ -398,7 +398,7 @@ skipComment = try $ do
             return ()
             where skip begMark = do
                        skipMany (noneOf "-")
-                       endMark <- many (char '-')
+                       endMark <- many1 (char '-')
                        if begMark == endMark
                          then return ()
                          else skip begMark
