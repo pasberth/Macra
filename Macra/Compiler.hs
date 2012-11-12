@@ -41,12 +41,8 @@ macroDefineMacCxtNode mm (MacDef1MNode id sig params node) =
   M.insert ((last sig), id) ((init sig), params, node) mm
 macroDefineMacCxtNode mm (MacDef2MNode id sig params) =
   M.insert ((last sig), id) ( (init sig)
-                            , params
-                            , (MacroNode (recur (SymNode id) params))) mm
-  where recur f [] = f
-        recur f params = (FuncallNode (recur f (init params))
-                                      (SymNode (last params)))
-
+                            , []
+                            , (MacroNode (SymNode id))) mm
 macroExpand :: MacroMap -> P.CxtId -> Node -> Either ExpandError Node
 macroExpand mm cxt node =
   case macroExpand' mm cxt node of
@@ -76,6 +72,9 @@ macroExpand' mm cxtId node@(IfNode condExp thenExp elseExp) =
   pure (\a b c -> ([], [], IfNode a b c)) <*> macroExpand mm toplevelContext condExp
                                           <*> macroExpand mm toplevelContext thenExp
                                           <*> macroExpand mm toplevelContext elseExp
+macroExpand' mm cxtId (DoNode a b) =
+  pure (\a b -> ([], [], DoNode a b)) <*> (macroExpand mm toplevelContext a)
+                                      <*> (macroExpand mm toplevelContext b)
 macroExpand' mm cxtId node@(LambdaNode param body) =
   pure (\body -> ([], [], LambdaNode param body)) <*> macroExpand mm toplevelContext body
 
@@ -84,16 +83,27 @@ macroExpand' mm cxtId node@(DefineNode id expr) =
 macroExpand' mm cxtId node@(FuncallNode a b) =
   case macroExpand' mm cxtId a of
     Left err -> Left err
+    -- TODO: Right ([], param:params, node) -> ..
+    -- for example, when
+    -- #[ f x y : a -> b = .. ]
     Right ([], [], fn) ->
       pure (\b -> ([], [], FuncallNode fn b)) <*> macroExpand mm toplevelContext b
+    Right (cxt:sig, [], fn) ->
+      pure (\b -> (sig, [], FuncallNode fn b)) <*> macroExpand mm cxt b
+    Right (cxt:[], param:[], (MacroNode macroNode)) ->
+      case pure (macroReplace param macroNode) <*> (macroExpand mm cxt b) of
+        Right node -> pure (\x -> x) <*> macroExpand' mm cxtId node
+        Left err -> Left err
     Right (cxt:sig, param:params, (MacroNode macroNode)) ->
       pure (\b -> ( sig
                   , params
                   , (MacroNode (macroReplace param
                                              macroNode
                                              b)))) <*> (macroExpand mm cxt b)
+macroExpand' mm cxtId node@(MacroNode _) = Right ([], [], node)
 
 macroReplace :: P.Identifier -> Node -> Node -> Node
+macroReplace param NilNode arg = NilNode
 macroReplace param node@(MacroNode _) arg = node
 macroReplace param node@(SymNode sym) arg
              | param == sym = arg
@@ -122,6 +132,9 @@ macroReplace param node@(CarNode a) arg =
              CarNode (macroReplace param a arg)
 macroReplace param (CdrNode a) arg =
              CdrNode (macroReplace param a arg)
+macroReplace param (DoNode a b) arg =
+             DoNode (macroReplace param a arg)
+                    (macroReplace param b arg)
 
 macroReplaceSym :: P.Identifier -> P.Identifier -> Node -> P.Identifier
 macroReplaceSym param var (P.SymNode arg)
@@ -167,3 +180,4 @@ compileNode (MacroNode node) next = compileNode node next
 compileNode (ConsNode a b) next = compileNode a (ArgInst (compileNode b (ConsInst next)))
 compileNode (CarNode node) next = compileNode node (CarInst next)
 compileNode (CdrNode node) next = compileNode node (CdrInst next)
+compileNode (DoNode a b) next = compileNode a (compileNode b next)

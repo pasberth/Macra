@@ -1,3 +1,5 @@
-!define f !lambda x a;
-!define a 1;
-!print $ f 2
+!do
+  !define f !lambda x a
+  !do
+    !define a 1
+    !print !funcall f 2

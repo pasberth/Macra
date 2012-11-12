@@ -1,12 +1,14 @@
-true : bool = 1;
-false : bool = 0;
+#[ a; b : toplevel -> toplevel -> toplevel
+        = !do a b ]
+#[ true : bool = 1 ]
+#[ false : bool = 0 ]
+# f x :: bool -> toplevel
 
-f x :: bool -> toplevel;
-!define f !lambda x x;
+!define f !lambda x x
 
-g x :: toplevel -> toplevel;
-!define g !lambda x y;
+# g x :: toplevel -> toplevel
 
-!print $ f true;
-!print $ f false;
-!print $ g true;
+!define g !lambda x y
+; !print !funcall f true
+; !print !funcall f false
+; !print !funcall g true

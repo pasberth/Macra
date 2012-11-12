@@ -1,3 +1,4 @@
-m x : number -> toplevel
-    = x;
-m 1;
+#[ m x : number -> toplevel
+    = x ]
+
+!print !funcall m 1
