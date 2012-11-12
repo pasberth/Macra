@@ -1,18 +1,21 @@
-(a) : toplevel -> toplevel
-    = a;
+#[ a; b : toplevel -> toplevel -> toplevel
+        = !do a b ]
 
-def id fn : symbol -> function -> toplevel
-          = !define id fn;
+#[ (a) : toplevel -> toplevel
+       = a ]
 
-a => b : symbol -> toplevel -> function
-       = !lambda a b;
+#[ def id fn : symbol -> function -> toplevel
+             = !define id fn ]
 
-a, b : symbol -> function -> function
-     = !lambda a b;
+#[ a => b : symbol -> toplevel -> function
+          = !lambda a b ]
+
+#[ a, b : symbol -> function -> function
+        = !lambda a b ]
 
 def map f, xs =>
   !if xs
       (!cons (f !car xs) (map f (!cdr xs)))
-      nil;
+      nil
 
-map (!lambda x !print x) !cons 1 !cons 2 !cons 3 nil;
+; map (!lambda x !print x) !cons 1 !cons 2 !cons 3 nil
