@@ -1,10 +1,8 @@
-print a : toplevel -> toplevel
-        = !print a;
+#[ print a : toplevel -> toplevel
+           = !print a ]
+#[ puts a : toplevel -> toplevel
+          = print a ]
+#[ echo a : toplevel -> toplevel
+          = puts a ]
 
-puts a : toplevel -> toplevel
-       = print a;
-
-echo a : toplevel -> toplevel
-       = puts a;
-
-echo "hello";
+echo "hello"
