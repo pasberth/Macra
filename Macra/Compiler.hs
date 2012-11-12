@@ -90,6 +90,20 @@ macroExpand' mm cxtId node@(FuncallNode a b) =
       pure (\b -> ([], [], FuncallNode fn b)) <*> macroExpand mm toplevelContext b
     Right (cxt:sig, [], fn) ->
       pure (\b -> (sig, [], FuncallNode fn b)) <*> macroExpand mm cxt b
+
+    -- 再帰的に置換。
+    --
+    -- 例:
+    --   #[ print a : toplevel -> toplevel
+    --              = !print a ]
+    --   #[ puts a : toplevel -> toplevel
+    --             = print a ]
+    --   #[ echo a : toplevel -> toplevel
+    --             = puts a ]
+    --   echo "hello"
+    --
+    -- echo "hello" はまず puts "hello" に置換される。そのあと
+    -- puts "hello" を同じコンテキストでマクロ展開する。
     Right (cxt:[], param:[], (MacroNode macroNode)) ->
       case pure (macroReplace param macroNode) <*> (macroExpand mm cxt b) of
         Right node -> pure (\x -> x) <*> macroExpand' mm cxtId node
