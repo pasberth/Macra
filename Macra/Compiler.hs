@@ -72,6 +72,9 @@ macroExpand' mm cxtId node@(IfNode condExp thenExp elseExp) =
   pure (\a b c -> ([], [], IfNode a b c)) <*> macroExpand mm toplevelContext condExp
                                           <*> macroExpand mm toplevelContext thenExp
                                           <*> macroExpand mm toplevelContext elseExp
+macroExpand' mm cxtId (DoNode a b) =
+  pure (\a b -> ([], [], DoNode a b)) <*> (macroExpand mm toplevelContext a)
+                                      <*> (macroExpand mm toplevelContext b)
 macroExpand' mm cxtId node@(LambdaNode param body) =
   pure (\body -> ([], [], LambdaNode param body)) <*> macroExpand mm toplevelContext body
 
@@ -170,3 +173,4 @@ compileNode (MacroNode node) next = compileNode node next
 compileNode (ConsNode a b) next = compileNode a (ArgInst (compileNode b (ConsInst next)))
 compileNode (CarNode node) next = compileNode node (CarInst next)
 compileNode (CdrNode node) next = compileNode node (CdrInst next)
+compileNode (DoNode a b) next = compileNode a (compileNode b next)
