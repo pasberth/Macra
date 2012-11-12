@@ -86,6 +86,10 @@ macroExpand' mm cxtId node@(FuncallNode a b) =
     Left err -> Left err
     Right ([], [], fn) ->
       pure (\b -> ([], [], FuncallNode fn b)) <*> macroExpand mm toplevelContext b
+    Right (cxt:[], param:[], (MacroNode macroNode)) ->
+      case pure (macroReplace param macroNode) <*> (macroExpand mm cxt b) of
+        Right node -> pure (\x -> x) <*> macroExpand' mm cxtId node
+        Left err -> Left err
     Right (cxt:sig, param:params, (MacroNode macroNode)) ->
       pure (\b -> ( sig
                   , params
