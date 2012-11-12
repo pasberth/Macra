@@ -1,2 +1,3 @@
-!if 1 !print 1 !print 0;
-!if nil !print 1 !print 0;
+!do
+  !if 1 !print 1 !print 0
+  !if nil !print 1 !print 0
