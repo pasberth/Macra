@@ -1,13 +1,16 @@
-(a) : list -> list
-    = a;
+#[ a; b : toplevel -> toplevel -> toplevel
+        = !do a b ]
 
-a => b : expr -> expr -> function
-       = !lambda a b;
+#[ (a) : list -> list
+       = a ]
 
-a, b : expr -> function -> function
-     = !lambda a b;
+#[ a => b : expr -> expr -> function
+          = !lambda a b ]
 
-map :: function -> list;
-list :: list -> toplevel;
+#[ a, b : expr -> function -> function
+        = !lambda a b ]
 
-list (map x => !print x);
+# map :: function -> list
+# list :: list -> toplevel
+
+list (map x => !print x)
