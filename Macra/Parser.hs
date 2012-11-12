@@ -54,6 +54,7 @@ instance Show Node where
   show (ConsNode a b) = concat ["!cons", (indent2 $ show a), (indent2 $ show b)]
   show (CarNode a) = concat ["!car", show a]
   show (CdrNode a) = concat ["!cdr", show a]
+  show (DoNode a b) = concat ["!do", (indent2 $ show a), (indent2 $ show b)]
 
 indent :: String -> String -> String
 indent idt node = foldl (\str x -> concat [str, "\n", idt,  x]) "" (lines node)
@@ -143,8 +144,8 @@ parseMacCxtStat :: Parser ToplevelNode
 parseMacCxtStat = parseMacDefTL
                 where parseMacDefTL = try $ do
                                   skipSpaces
+                                  string "#"
                                   macDef <- parseMacDef
-                                  do { string ";"; return () } <|> do { eof; return () }
                                   return $ MacCxtTLNode macDef
 
 parseMacSig :: Parser MacSig
@@ -174,6 +175,7 @@ parseCxtId = try parseCxtId'
 parseMacDef :: Parser MacCxtNode
 parseMacDef = parseMacDef2 <|> parseMacDef1 <?> "macro defination"
             where parseMacDef2 = try $ do
+                               skipSpaces
                                (id, params) <- parseMacDefIdAndParams
                                requireSpaces
                                string "::"
@@ -181,6 +183,9 @@ parseMacDef = parseMacDef2 <|> parseMacDef1 <?> "macro defination"
                                sig <- parseMacSig
                                return $ MacDef2MNode id sig params
                   parseMacDef1 = try $ do
+                               skipSpaces
+                               string "["
+                               skipSpaces
                                (id, params) <- parseMacDefIdAndParams
                                requireSpaces
                                string ":"
@@ -190,6 +195,8 @@ parseMacDef = parseMacDef2 <|> parseMacDef1 <?> "macro defination"
                                string "="
                                requireSpaces
                                defi <- parseSemicolon
+                               skipSpaces
+                               string "]"
                                return $ MacDef1MNode id sig params (MacroNode defi)
 
 parseMacDefIdAndParams :: Parser (Identifier, MacParams)
@@ -218,6 +225,9 @@ parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
                                                   return sym)
                                          <|> (try $ do
                                                   sym <- (string ",")
+                                                  return sym)
+                                         <|> (try $ do
+                                                  sym <- (string ";")
                                                   return sym)
                                    skipSpaces
                                    param2 <- parseIdAsIdentifier
