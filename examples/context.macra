@@ -3,10 +3,10 @@ x :+ y : expr -> expr -> a
 x :+ y : expr -> expr -> b
        = 2;
 
-f x :: a -> toplevel;
+f :: a -> toplevel;
 !define f !lambda x x;
 !print $ f $ x :+ y;
 
-g x :: b -> toplevel;
+g :: b -> toplevel;
 !define g !lambda x x;
 !print $ g $ x :+ y;

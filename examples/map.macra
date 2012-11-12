@@ -7,7 +7,7 @@ a => b : expr -> expr -> function
 a, b : expr -> function -> function
      = !lambda a b;
 
-map f :: function -> list;
-list l :: list -> toplevel;
+map :: function -> list;
+list :: list -> toplevel;
 
 list (map x => !print x);
