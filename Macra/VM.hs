@@ -27,7 +27,7 @@ data Inst = FrameInst  Inst       Inst           --hasnext
           | CdrInst    Inst                      --hasnext
           | ArgInst    Inst                      --hasnext
           | CloseInst  Identifier Inst Inst      --hasnext
-          | FreezeInst Inst       Inst
+          | FreezeInst Inst       Inst           --hasnext
           | ApplyInst
           | ThawInst   Inst                      --hasnext
           | ReferInst  Identifier Inst           --hasnext
@@ -221,9 +221,11 @@ vm'' vmState@(VM a (ThawInst nxt) _ (val:r) s mem) = do
       }
       vm'
     _ -> do
-      S.liftIO $ do
-        putStr $ concat ["Invalid thawing: ", show a]
-      return ()
+      -- pass if the symbol is bound to non-thunk
+      S.put vmState {
+            vmInst = nxt
+      }
+      vm'
 
 vm'' vmState@(VM a ReturnInst _ _ ((ret, envRef, r):s) _) = do
         S.put vmState {
