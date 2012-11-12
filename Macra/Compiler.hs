@@ -55,6 +55,7 @@ macroExpand mm node =
     Left err -> Left err
 
 macroExpand' :: MacroMap -> P.CxtId -> Node -> Either ExpandError Macro
+macroExpand' mm cxtId NilNode = Right ([], [], NilNode)
 macroExpand' mm cxtId node@(SymNode macroId) =
   case M.lookup (cxtId, macroId) mm of
     Just macro -> Right macro
@@ -62,11 +63,6 @@ macroExpand' mm cxtId node@(SymNode macroId) =
 
 macroExpand' mm cxtId node@(CharNode _) = Right ([], [], node)
 macroExpand' mm cxtId node@(NumNode _) = Right ([], [], node)
-macroExpand' mm cxtId node@(ListNode list) =
-  pure (\list -> ([], [], ListNode list))
-  <*> (foldr (\node r -> pure (\nodes node -> (node:nodes)) <*> r <*> macroExpand mm node)
-             (Right [])
-             list)
 macroExpand' mm cxtId node@(PrintNode expr) =
   pure (\expr -> ([], [], PrintNode expr)) <*> macroExpand mm expr
 macroExpand' mm cxtId (ConsNode a b) =
@@ -85,8 +81,6 @@ macroExpand' mm cxtId node@(LambdaNode param body) =
 macroExpand' mm cxtId node@(DefineNode id expr) =
   pure (\expr -> ([], [], DefineNode id expr)) <*> macroExpand mm expr
 macroExpand' mm cxtId node@(FuncallNode a b) =
-  macroExpand' mm cxtId (MaccallNode a b)
-macroExpand' mm cxtId node@(MaccallNode a b) =
   case macroExpand' mm cxtId a of
     Right ([], [], fn) ->
       case (macroExpand mm b) of
@@ -113,13 +107,8 @@ macroReplace param node@(SymNode sym) arg
              | otherwise = node
 macroReplace param node@(CharNode _) arg = node
 macroReplace param node@(NumNode _) arg = node
-macroReplace param node@(ListNode nodes) arg =
-             ListNode $ map (flip (macroReplace param) arg) nodes
 macroReplace param node@(FuncallNode a b) arg =
              FuncallNode (macroReplace param a arg)
-                         (macroReplace param b arg)
-macroReplace param node@(MaccallNode a b) arg =
-             MaccallNode (macroReplace param a arg)
                          (macroReplace param b arg)
 macroReplace param node@(IfNode a b c) arg =
              IfNode (macroReplace param a arg)
@@ -161,16 +150,14 @@ compile mm [] = Right HaltInst
 
 compileNode :: Node -> Inst -> Inst
 
+compileNode NilNode next =
+  ConstExpr (VM.List []) next
 compileNode (SymNode symbol) next =
   ReferInst symbol next
 compileNode (CharNode chr) next =
   ConstExpr (VM.Char chr) next
 compileNode (NumNode num) next =
   ConstExpr (VM.Double num) next
-compileNode (ListNode nodes) next =
-  (foldr (\atom list -> (\next -> compileNode atom (ArgInst (list (ConsInst next)))))
-         (ConstExpr (VM.List []))
-         nodes) next
 compileNode (IfNode condExp thenExp elseExp) next =
   compileNode condExp $
     TestInst (compileNode thenExp next)
@@ -181,8 +168,6 @@ compileNode (DefineNode var val) next =
   compileNode val $ DefineInst var next
 compileNode (FuncallNode lambda argument) next = 
   FrameInst next (compileNode argument (ArgInst (compileNode lambda ApplyInst)))
-compileNode (MaccallNode a b) next =
-  compileNode (FuncallNode a b) next
 compileNode (PrintNode argument) next =
   compileNode argument $ PrintInst next
 compileNode (MacroNode node) next = compileNode node next
