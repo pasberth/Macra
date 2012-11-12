@@ -41,12 +41,8 @@ macroDefineMacCxtNode mm (MacDef1MNode id sig params node) =
   M.insert ((last sig), id) ((init sig), params, node) mm
 macroDefineMacCxtNode mm (MacDef2MNode id sig params) =
   M.insert ((last sig), id) ( (init sig)
-                            , params
-                            , (MacroNode (recur (SymNode id) params))) mm
-  where recur f [] = f
-        recur f params = (FuncallNode (recur f (init params))
-                                      (SymNode (last params)))
-
+                            , []
+                            , (MacroNode (SymNode id))) mm
 macroExpand :: MacroMap -> P.CxtId -> Node -> Either ExpandError Node
 macroExpand mm cxt node =
   case macroExpand' mm cxt node of
@@ -86,6 +82,8 @@ macroExpand' mm cxtId node@(FuncallNode a b) =
     Left err -> Left err
     Right ([], [], fn) ->
       pure (\b -> ([], [], FuncallNode fn b)) <*> macroExpand mm toplevelContext b
+    Right (cxt:sig, [], fn) ->
+      pure (\b -> (sig, [], FuncallNode fn b)) <*> macroExpand mm cxt b
     Right (cxt:[], param:[], (MacroNode macroNode)) ->
       case pure (macroReplace param macroNode) <*> (macroExpand mm cxt b) of
         Right node -> pure (\x -> x) <*> macroExpand' mm cxtId node
@@ -96,6 +94,7 @@ macroExpand' mm cxtId node@(FuncallNode a b) =
                   , (MacroNode (macroReplace param
                                              macroNode
                                              b)))) <*> (macroExpand mm cxt b)
+macroExpand' mm cxtId node@(MacroNode _) = Right ([], [], node)
 
 macroReplace :: P.Identifier -> Node -> Node -> Node
 macroReplace param node@(MacroNode _) arg = node
