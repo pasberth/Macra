@@ -202,7 +202,8 @@ parseMacDef = parseMacDef2 <|> parseMacDef1 <?> "macro defination"
 parseMacDefIdAndParams :: Parser (Identifier, MacParams)
 parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
                        where brackets = bracket "(" ")" <|>
-                                        bracket "[" "]"
+                                        bracket "[" "]" <|>
+                                        bracket "{" "}"
                              bracket beg end = try $ do
                                      string beg
                                      skipSpaces
@@ -306,7 +307,8 @@ parseBracketMaccall = parseBracket <|> parseVMInst <|> parseString <|> parseChar
                                         ; return (FuncallNode (SymNode beg) expr)
                                     }
                           parseBracket = bracket "[" "]" <|>
-                                       bracket "(" ")"
+                                       bracket "(" ")" <|>
+                                       bracket "{" "}"
 
 parseLambdaSyntax :: Parser Node
 parseLambdaSyntax = parseEqualArrow <|> parseComma <|> parseBracketMaccall
