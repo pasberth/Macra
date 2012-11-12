@@ -1,7 +1,10 @@
-bar : foo = 1;
-fuga : hoge = 2;
+#[ a; b : toplevel -> toplevel -> toplevel
+        = !do a b ]
+#[ bar : foo = 1 ]
+#[ fuga : hoge = 2 ]
 
-f x y :: foo -> hoge -> toplevel;
-!define f !lambda x !lambda y 3;
-!print $ f bar fuga;
-!print $ f fuga bar;
+# f :: foo -> hoge -> toplevel
+
+  !define f !lambda x !lambda y 3
+; !print !funcall !funcall f bar fuga
+; !print !funcall !funcall f fuga bar

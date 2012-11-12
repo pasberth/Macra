@@ -1,2 +1,3 @@
-!define l !cons 1 !cons 2 !cons 3 nil;
-!print l;
+!do
+  !define l !cons 1 !cons 2 !cons 3 nil
+  !print l
