@@ -49,4 +49,15 @@ def bind m, k =>
 !print (bind (bind (unit 1)
                    { a => (!print a; (unit 2)) })
              { a => (!print a; (unit 3)) }
-             0)
+             0);
+
+#[ eval-state a s : state -> toplevel
+                = unit a s ]
+
+#[ {a} : state -> state
+       = a ]
+
+#[ put x : toplevel -> state
+         = { a => unit x } ]
+
+!print (eval-state {put 2} 1)
