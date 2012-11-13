@@ -9,15 +9,17 @@
 
 !define car
   !lambda lis
-    !funcall lis !lambda head
-      !lambda tail
-        head;
+    !funcall lis 
+      !lambda head
+        !lambda tail
+          head;
 
 !define cdr
   !lambda lis
-    !funcall lis !lambda head
-      !lambda tail
-        tail;
+    !funcall lis 
+      !lambda head
+        !lambda tail
+          tail;
 
 !define aList 
   !funcall !funcall cons 3 !funcall !funcall cons 2 !funcall !funcall cons 1 0;

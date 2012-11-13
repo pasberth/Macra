@@ -8,6 +8,7 @@ import qualified Control.Monad.State as S
 data Value = Double Double
            | Char Char
            | List [Value]
+           | Refered Value Identifier         --Pair of value and the refered key, used in thaw
            | Closure Identifier Inst   EnvRef
            | Thunk   Inst              EnvRef
            deriving (Eq, Ord)
@@ -16,8 +17,9 @@ instance Show Value where
   show (Char c) = [c]
   show (Double i) = show i
   show (List xs) = concat ["(", concat (L.intersperse " " (map show xs)), ")"]
-  show (Closure var body e) = concat [show var, show body]
+  show (Closure var body e) = concat [show "Close: ", show var, show body]
   show (Thunk body e) = show body
+  show (Refered val idf) = concat [show idf, show ":", show val]
 
 type Identifier = String
 data Inst = FrameInst  Inst       Inst           --hasnext
@@ -155,7 +157,7 @@ vm'' vmState@(VM a (ReferInst id nxt) envRef r s envMem) = do
       case lookupVal id envRef envMem of
         Just v -> do
           S.put vmState {
-                vmAcc = v
+                vmAcc = Refered v id --thaw needs id
               , vmInst = nxt
                 }
           vm'
@@ -208,24 +210,30 @@ vm'' vmState@(VM a ApplyInst _ (val:r) s mem) = do
 
 -- ThawInst thaws thunks
 -- Call-by-name strategy thaws the thunk everytime the name is seen
-vm'' vmState@(VM a (ThawInst nxt) fnEnvRef _ _ mem) = do
+vm'' vmState@(VM (Refered a id) (ThawInst nxt) fnEnvRef _ _ mem) = do
   case a of
     (Thunk body envRef) -> do
       S.put vmState {
-          vmInst = body  -- evaluate the thunk
+          vmAcc = a
+        , vmInst = body  -- evaluate the thunk
         , vmEnvRef = envRef
       }
       vm'
-      newVMState <- S.get
+      newVMState@(VM acc _ _ _ _ mem') <- S.get
+      closedEnvRef <- S.lift U.newUnique
       S.put newVMState {
             vmInst = nxt   -- go to next instruction with the evaluated thunk on the accum
-          , vmEnvRef = fnEnvRef
+          , vmEnvRef = closedEnvRef
+          , vmEnvMem = (M.insert closedEnvRef
+                                 ((M.fromList [ (id, acc) ]), fnEnvRef)
+                                 mem')
       }
       vm'
     _ -> do
       -- pass if the symbol is bound to non-thunk
       S.put vmState {
-            vmInst = nxt
+            vmAcc = a
+          , vmInst = nxt
       }
       vm'
 
