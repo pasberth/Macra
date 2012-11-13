@@ -21,7 +21,8 @@
         !lambda tail
           tail;
 
-!define aList 
-  !funcall !funcall cons 3 !funcall !funcall cons 2 !funcall !funcall cons 1 0;
+!define infLis 
+  !lambda x
+    !funcall !funcall cons x !funcall infLis x;
 
-!print !funcall car !funcall cdr aList
+!print !funcall car !funcall cdr !funcall infLis 5
