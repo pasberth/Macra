@@ -1,0 +1,19 @@
+#[ a; b : toplevel -> toplevel -> toplevel
+        = !do a b ]
+#[ (a)   : toplevel  -> toplevel = a ]
+#[ new a : data      -> toplevel = a ]
+#[ (a)   : data      -> data     = a ]
+#[ Map a : data-Map  -> data     = a ]
+#[ {a}   : data-Map  -> data-Map = a ]
+
+#[ a; b  : data-Pair -> data-Map -> data-Map
+         = !cons a b ]
+
+#[ a => b : toplevel -> toplevel -> data-Pair
+          = !cons a !cons b nil ]
+
+!define aMap (new (Map { "a" => 1
+                       ; "b" => 2
+                       ; nil
+                       }));
+!print aMap
