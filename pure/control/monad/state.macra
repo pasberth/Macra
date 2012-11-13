@@ -49,15 +49,32 @@ def bind m, k =>
 !print (bind (bind (unit 1)
                    { a => (!print a; (unit 2)) })
              { a => (!print a; (unit 3)) }
-             0);
+             0)
 
-#[ eval-state a s : state -> toplevel
-                = unit a s ]
+#[ eval-state a m : toplevel -> state -> toplevel
+                  = bind (m (unit a)) { x => unit x } nil ]
 
-#[ {a} : state -> state
-       = a ]
+#[ {x} : state -> state
+       = !lambda a (x a) ]
 
-#[ put x : toplevel -> state
-         = { a => unit x } ]
+#[ x; y : state -> state -> state
+        = !lambda a (bind (x a) y) ]
 
-!print (eval-state {put 2} 1)
+#[ id := expr : symbol -> toplevel -> state
+              = !lambda id (unit expr) ]
+
+#[ id => expr : symbol -> toplevel -> state
+              = !lambda id (expr; unit id) ]
+
+!print (eval-state
+  1
+  ------------------------
+  TODO: (!lambda a a).
+  ------------------------
+  { !lambda a a
+  ; a => !print a
+  ; a := 5
+  ; a => !print a
+  ; a := 3
+  ; a => !print a
+  })
