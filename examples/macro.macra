@@ -1,4 +1,0 @@
-#[ m x : number -> toplevel
-    = x ]
-
-!print !funcall m 1
