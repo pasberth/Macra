@@ -40,3 +40,8 @@ def map f, xs =>
       (!cons (f !car xs) (map f !cdr xs))
 
 ; map { x => !print x } [1, 2, 3, nil]
+
+
+; def puts str =>
+  map { x => !print x } str
+; puts "hello world"
