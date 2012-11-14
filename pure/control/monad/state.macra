@@ -60,6 +60,8 @@ def bind m, k =>
 #[ x; y : state -> state -> state
         = !lambda a (bind (x a) y) ]
 
+#[ begin : state = !lambda a a ]
+
 #[ id := expr : symbol -> toplevel -> state
               = !lambda id (unit expr) ]
 
@@ -68,10 +70,7 @@ def bind m, k =>
 
 !print (eval-state
   1
-  ------------------------
-  TODO: (!lambda a a).
-  ------------------------
-  { !lambda a a
+  { begin
   ; a => !print a
   ; a := 5
   ; a => !print a
