@@ -1,0 +1,4 @@
+#[ expr :if cond : toplevel -> toplevel -> toplevel
+                 = !if cond expr nil ]
+
+!print "1" :if 1
