@@ -1,0 +1,42 @@
+#[ a; b : toplevel -> toplevel -> toplevel
+        = !do a b ]
+
+#[ (a) : toplevel -> toplevel
+       = a ]
+
+#[ {a} : function -> toplevel
+       = a ]
+
+#[ [a] : list -> toplevel
+       = a ]
+
+#[ not a : toplevel -> toplevel
+         = !if a nil 0 ]
+
+#[ and a b : toplevel -> toplevel -> toplevel
+           = !if a b nil ]
+
+#[ or a b : toplevel -> toplevel -> toplevel
+          = !if a nil b ]
+
+#[ def id fn : symbol -> function -> toplevel
+             = !define id fn ]
+
+#[ a => b : symbol -> toplevel -> function
+          = !lambda a b ]
+
+#[ a, b : symbol -> function -> function
+        = !lambda a b ]
+
+#[ a, b : toplevel -> list -> list
+        = !cons a b ]
+
+#[ a; b : toplevel -> list -> list
+        = !cons a b ]
+
+def map f, xs =>
+  !if (not xs)
+      xs
+      (!cons (f !car xs) (map f !cdr xs))
+
+; map { x => !print x } [1, 2, 3, nil]

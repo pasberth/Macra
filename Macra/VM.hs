@@ -142,7 +142,7 @@ vm'' vmState@(VM a (CdrInst nxt) e r s _) = do
          S.liftIO $ putStr $ concat [ "invalid list: ", show val ]
          return ()
 vm'' vmState@(VM a (PrintInst nxt) e r s _) = do
-      S.liftIO $ print a
+      S.liftIO $ putStr $ show a
       S.put vmState {
             vmInst = nxt
             }
