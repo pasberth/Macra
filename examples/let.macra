@@ -1,5 +1,5 @@
-#[ let expr        : letExpr  -> toplevel            = expr ]
-#[ expr => letBody : symbol   -> letBody -> letExpr = letBody expr ]
+#[ let expr        : letExpr  -> toplevel           = expr ]
+#[ expr => letBody : toplevel -> letBody -> letExpr = letBody expr ]
 #[ id, body        : symbol   -> letExpr -> letBody = !lambda id body ]
 #[ {a}             : toplevel -> letExpr            = a ]
 
