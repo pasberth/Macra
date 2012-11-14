@@ -42,7 +42,7 @@ def bind m, k =>
     ( !define result (m s)
     ; !define a !car result
     ; !define s2 !car !cdr result
-    ; (k a) s
+    ; (k a) s2
     )
   };
 
