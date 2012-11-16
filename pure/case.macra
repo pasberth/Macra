@@ -2,7 +2,11 @@
 #[ a, b : toplevel -> list -> list     = !cons a b ]
 
 #[ case a       : case                  -> toplevel    = a ]
-#[ expr => bind : toplevel  -> case-bind -> case       = !lambda p !funcall !funcall bind !car p !cdr p expr ]
+#[ expr => bind : toplevel  -> case-bind -> case       =
+                !lambda p
+                  !if p
+                    !funcall !funcall bind !car p !cdr p expr
+                    nil ]
 #[ id, body     : case-bind -> case-bind -> case-bind 
                 = !lambda id
                     !lambda q
@@ -18,7 +22,7 @@
 
 case [1, 2, 3, nil] => x, y, z,
   { [x, y, z, nil] => !print x
-  ; [1, 2, 3] => !print y
+  ; [1, 2, 3, nil] => !print y
   ; p => !print p
   }
 
