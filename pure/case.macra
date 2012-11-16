@@ -1,0 +1,48 @@
+#[ [a]  : list             -> toplevel = a ]
+#[ a, b : toplevel -> list -> list     = !cons a b ]
+
+#[ case a       : case                  -> toplevel    = a ]
+#[ expr => bind : toplevel  -> case-bind -> case       = !lambda p !funcall !funcall bind !car p !cdr p expr ]
+#[ id, body     : case-bind -> case-bind -> case-bind 
+                = !lambda id
+                    !lambda q
+                      !if q
+                        !funcall !funcall body !car q !cdr q
+                        body ]
+#[ {a}          : case-match -> case-bind
+                = a ]
+#[ a => b       : toplevel -> toplevel -> case-match
+                = !if !eq a p b nil ]
+#[ a; b         : case-match -> case-match -> case-match
+                = !if a nil b ]
+
+case [1, 2, 3, nil] => x, y, z,
+  { [x, y, z, nil] => !print x
+  ; [1, 2, 3] => !print y
+  ; p => !print p
+  }
+
+--------
+
+構想:
+case [1, 2, 3] => (x, y, z)
+| (1, 2, z) => print z
+| _ => print _
+
+!lambda _
+  !lambda x
+    !lambda y
+      !lambda z
+        !if (all { !eq 1 x
+                 ; !eq 2 y
+                 ; !eq z z
+                 }
+            print z
+            !if (all { !eq _ _ })
+              print _
+              nil
+        !car !car !car _
+      !car !car _
+    !car _
+  [1, 2, 3]
+--------
