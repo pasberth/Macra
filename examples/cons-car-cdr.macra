@@ -1,0 +1,28 @@
+#[ a; b : toplevel -> toplevel -> toplevel
+        = !do a b ]
+
+!define cons
+   !lambda head
+     !lambda tail
+       !lambda f
+         !funcall !funcall f head tail;
+
+!define car
+  !lambda lis
+    !funcall lis 
+      !lambda head
+        !lambda tail
+          head;
+
+!define cdr
+  !lambda lis
+    !funcall lis 
+      !lambda head
+        !lambda tail
+          tail;
+
+!define infLis 
+  !lambda x
+    !funcall !funcall cons x !funcall infLis x;
+
+!print !funcall car !funcall cdr !funcall infLis 5
