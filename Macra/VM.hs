@@ -22,7 +22,6 @@ instance Show Value where
   show (Refered val idf) = concat [show idf, show ":", show val]
 
 type Identifier = String
---data TwoArgFn = TwoArgFn (Double -> Double -> Double)
 data Inst = FrameInst  Inst       Inst           --hasnext
           | ConstExpr  Value      Inst           --hasnext
           | ConsInst   Inst                      --hasnext
@@ -43,12 +42,6 @@ data Inst = FrameInst  Inst       Inst           --hasnext
           -- | NativeCallInst TwoArgFn Inst         --hasnext
           deriving (Show, Eq, Ord)
 
-{-instance Show TwoArgFn where
-  show _ = "x"
-instance  Eq TwoArgFn where
-  a == b = False
-instance  Ord TwoArgFn
--}
 data VM = VM {
      vmAcc :: Value
    , vmInst :: Inst
@@ -91,18 +84,12 @@ nativeFunction nativeId =
   -- nativeIdは1から始まる4桁の数字とする。(なんとなく)
   -- ここは将来Mapでマッチングさせる
   case nativeId of
-      1001 -> \x -> \y -> Double (x + y)
-{-    1001 -> (CloseInst "x"
-              (CloseInst "y" 
-                (FrameInst 
-                  ReturnInst 
-                  (ReferInst "x"
-                    (ArgInst
-                      (ReferInst "y"
-                        (ArgInst
-                          (NativeCallInst (TwoArgFn (+)) ReturnInst)))))) ApplyInst)
-            nxt)
--}
+      1001 -> \x -> \y -> Double (x + y) -- Mathematical add
+      1002 -> \x -> \y -> Double (x - y) -- Mathematical sub
+      1003 -> \x -> \y -> Double (x * y) -- Mathematical mul
+      1004 -> \x -> \y -> Double (x `div` y) -- Mathematical div
+      1005 -> \x -> \y -> Double (x `mod` y) -- Mathematical mod
+
 
 vm :: Inst -> IO ()
 vm inst = do
@@ -234,15 +221,6 @@ vm'' vmState@(VM a ApplyInst _ (val:r) s mem) = do
             putStr $ concat ["invalid application: ", show a]
           return ()
 
-{-- NativeCallInst applies Haskell's function to values
-vm'' vmState@(VM a (NativeCallInst (TwoArgFn fn) nxt) _ ((Double x):(Double y):r) s mem) = do
-  S.liftIO $ print x
-  S.put vmState {
-    vmAcc = Double (fn x y)
-  , vmInst = nxt
-  }
-  vm'
---}
 -- ThawInst thaws thunks
 -- Call-by-name strategy thaws the thunk everytime the name is seen
 vm'' vmState@(VM (Refered a id) (ThawInst nxt) fnEnvRef _ _ mem) = do
