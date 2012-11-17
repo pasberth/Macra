@@ -288,8 +288,7 @@ vm'' vmState@(VM a (FreezeInst body nxt) envRef r s mem) = do
 -- native funcations --
 vm'' vmState@(VM _ (NativeInst nativeId nxt) e ((Thunk (ConstExpr  (Double x) _) _):(Thunk (ConstExpr (Double y) _) _):r) _ _) = do
         S.put vmState {
-              vmAcc = Closure "x" (CloseInst "y" (ConstExpr ((nativeFunction nativeId) x y) ReturnInst) ReturnInst) e
-            ,  vmInst = nxt
+            vmInst = CloseInst "x" (CloseInst "y" (ConstExpr ((nativeFunction nativeId) x y) ReturnInst) ReturnInst) nxt
         }
         vm'
 

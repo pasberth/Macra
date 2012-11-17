@@ -247,9 +247,6 @@ compileNode (LambdaNode param expr) next =
   CloseInst param (compileNode expr ReturnInst) next
 compileNode (DefineNode var val) next =
   compileNode val $ DefineInst var next
-{-compileNode (FuncallNode native@(NativeNode _) argument) next =
-  -- native acts like a closure
-  FrameInst next (FreezeInst (compileNode argument HaltInst) (ArgInst (compileNode native ReturnInst))) -}
 compileNode (FuncallNode lambda argument) next = 
   -- Save call-frame before funcalling. funcall applies `lambda` to `argument`
   -- Freeze the argument to create a thunk. (Lazy evaluation)
