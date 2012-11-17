@@ -243,6 +243,7 @@ program = try (skipSpacesAndCompileTimeExpressions >> parseSemicolon)
         where skipSpacesAndCompileTimeExpressions = do
                 skipSpaces
                 try (string "#" >> parseMacDef >> skipSpacesAndCompileTimeExpressions)
+                  <|> return ()
 
 parseExpr :: Parser Node
 parseExpr = parseLambdaSyntax <?> "a expression"
