@@ -139,11 +139,11 @@ parseIntNumNonZero = try $ do
                   beginDigit = oneOf "123456789"
 
 compileTimeExpr :: Parser [MacCxtNode]
-compileTimeExpr = parseMacDefTL
-                where parseMacDefTL = many $ try $ do
-                                  skipSpaces
-                                  string "#"
-                                  parseMacDef
+compileTimeExpr = many1 $ try $ do
+                    skipProgram
+                    string "#"
+                    parseMacDef
+                 where skipProgram = skipMany $ noneOf "#"
 
 parseMacSig :: Parser MacSig
 parseMacSig = fnType <|> primType <?> "signature"
@@ -239,7 +239,10 @@ parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
                                     return (id, params)
 
 program :: Parser Node
-program = try $ skipSpaces >> parseSemicolon
+program = try (skipSpacesAndCompileTimeExpressions >> parseSemicolon)
+        where skipSpacesAndCompileTimeExpressions = do
+                skipSpaces
+                try (string "#" >> parseMacDef >> skipSpacesAndCompileTimeExpressions)
 
 parseExpr :: Parser Node
 parseExpr = parseLambdaSyntax <?> "a expression"
