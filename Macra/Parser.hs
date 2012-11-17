@@ -239,7 +239,7 @@ parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
                                     return (id, params)
 
 program :: Parser Node
-program = parseSemicolon
+program = try $ skipSpaces >> parseSemicolon
 
 parseExpr :: Parser Node
 parseExpr = parseLambdaSyntax <?> "a expression"
