@@ -1,28 +1,33 @@
 #[ [a]  : list             -> toplevel = a ]
 #[ a, b : toplevel -> list -> list     = !cons a b ]
 
-#[ case a       : case                  -> toplevel    = a ]
-#[ expr => bind : toplevel  -> case-bind -> case       =
-                !lambda p
-                  !if p
-                    !funcall !funcall bind !car p !cdr p expr
-                    nil ]
-#[ id, body     : case-bind -> case-bind -> case-bind 
-                = !lambda id
-                    !lambda q
-                      !if q
-                        !funcall !funcall body !car q !cdr q
-                        body ]
-#[ {a}          : case-match -> case-bind
-                = a ]
-#[ a => b       : toplevel -> toplevel -> case-match
-                = !if !eq a p b nil ]
-#[ a; b         : case-match -> case-match -> case-match
-                = !if a nil b ]
+#[ case a       : case                     -> toplevel   = a ]
+#[ expr => bind : toplevel   -> case-bind  -> case       = !lambda p !do !define q p bind expr ]
+#[ id, body     : case-bind  -> case-bind  -> case-bind  = !lambda id !lambda q body !car q !cdr q ]
+#[ {a}          : case-match               -> case-bind  = a ]
+-----------------------------------------------------------------------------------
+  こうしたいけど !eq ないから今はできない
+  #[ a => b       : toplevel   -> toplevel   -> case-match = !if !eq a p b nil ]
+-----------------------------------------------------------------------------------
+#[ a => b       : toplevel   -> toplevel   -> case-match = !do b nil ]
+#[ a; b         : case-match -> case-match -> case-match = !if a nil b ]
 
+-----------------------------------------
+  リストの要素が x, y, z に束縛されて、 
+  a => b の a で参照しリストを組み立てて、
+  そのリストと p を比較してて同じなら
+  マッチとする。残念ながら
+
+    [1, [2, 3, nil], 4, nil] => x, (y1, y2), z
+
+  のように束縛はできない。
+-----------------------------------------
 case [1, 2, 3, nil] => x, y, z,
   { [x, y, z, nil] => !print x
   ; [1, 2, 3, nil] => !print y
+  -------------------------------------
+    p には [1, 2, 3, nil] が束縛される
+  -------------------------------------
   ; p => !print p
   }
 
