@@ -9,7 +9,7 @@
   無名関数で再帰ができる function マクロ。
     function x => { callee x }
   が
-    !lambda nil !do !define callee !lambda x !funcall callee x callee nil
+    !lambda nil !define callee !lambda x !funcall callee x nil
   に置換されるので、 callee で再帰ができる。
 -------------------------------------------------
 (function f, xs => {
