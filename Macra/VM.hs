@@ -38,6 +38,8 @@ data Inst = FrameInst  Inst       Inst           --hasnext
           | DefineInst Identifier Inst           --hasnext
           | HaltInst
           | PrintInst  Inst                      --hasnext
+          | NativeInst Integer Inst                  --hasnext
+          -- | NativeCallInst TwoArgFn Inst         --hasnext
           deriving (Show, Eq, Ord)
 
 data VM = VM {
@@ -77,6 +79,14 @@ lookupVal id envRef mem =
 
 nil :: Value
 nil = List []
+
+nativeFunction nativeId =
+  -- nativeIdは1から始まる4桁の数字とする。(なんとなく)
+  -- ここは将来Mapでマッチングさせる
+  case nativeId of
+      1001 -> \x -> \y -> Double (x + y) -- Mathematical add
+      1002 -> \x -> \y -> Double (x - y) -- Mathematical sub
+      
 
 vm :: Inst -> IO ()
 vm inst = do
@@ -274,6 +284,14 @@ vm'' vmState@(VM a (FreezeInst body nxt) envRef r s mem) = do
             , vmInst = nxt
               }
         vm'
+
+-- native funcations --
+vm'' vmState@(VM _ (NativeInst nativeId nxt) e ((Thunk (ConstExpr  (Double x) _) _):(Thunk (ConstExpr (Double y) _) _):r) _ _) = do
+        S.put vmState {
+            vmInst = CloseInst "x" (CloseInst "y" (ConstExpr ((nativeFunction nativeId) x y) ReturnInst) ReturnInst) nxt
+        }
+        vm'
+
 vm'' vmState = do
      S.liftIO $ do
        print "** VM BUG **: "
