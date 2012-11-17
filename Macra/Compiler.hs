@@ -13,12 +13,29 @@ import Macra.VM hiding (Identifier)
 import qualified Macra.Parser as P
 import qualified Macra.VM as VM
 
+-- コンテキスト & id とマクロの関連。
+-- macroDefine で作り、 macroExpand で使用する。
+-- たとえば
+-- #[ m a : t -> u = a ]
+-- であれば CxtId は u で Identifier は m となる。
 type MacroMap = M.Map (P.CxtId, P.Identifier) Macro
+
+-- たとえば
+-- #[ m a : t -> u = a ]
+-- であれば (["t"], ["a"], (SymNode "a"))
+-- のような形。 
 type Macro = (MacSig, MacParams, Node)
+
+-- compile 関数がコンパイルに失敗したとき返す型
+-- TODO: とりあえず用意しただけ。
+--       あとでメッセージとかちゃんと書く
 data CompileError = CompileError
                   | CompileExpandError ExpandError
                   deriving (Eq, Show)
 
+-- macroExpand 関数がマクロ展開に失敗したとき返す型
+-- TODO: とりあえず用意しただけ。
+--       あとでメッセージとかちゃんと書く
 data ExpandError = ExpandError
                  | ExpandArgumentError Macro
                  deriving (Eq, Show)
