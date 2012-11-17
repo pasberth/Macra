@@ -1,0 +1,8 @@
+#[ (a)         : toplevel               -> toplevel  = a ]
+#[ a; b        : toplevel  -> toplevel  -> toplevel  = !do a b ]
+#[ blackhole a : blackhole              -> toplevel  = nil ]
+#[ {a}         : blackhole              -> blackhole = nil ]
+#[ eats a      : toplevel               -> blackhole = nil ]
+#[ a; b        : blackhole -> blackhole -> blackhole = !do a b ]
+
+blackhole { eats "everything" }
