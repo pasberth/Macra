@@ -1,0 +1,19 @@
+#[ function a : function             -> toplevel = !lambda nil !do !define callee a callee nil ]
+#[ a, b       : symbol   -> function -> function = !lambda a b ]
+#[ a => b     : symbol   -> toplevel -> function = !lambda a b ]
+#[ {a}        : toplevel             -> toplevel = a ]
+#[ a; b       : toplevel -> toplevel -> toplevel = !do a b ]
+#[ (a)        : toplevel             -> toplevel = a ]
+
+-------------------------------------------------
+  無名関数で再帰ができる function マクロ。
+    function x => { callee x }
+  が
+    !lambda nil !do !define callee !lambda x !funcall callee x callee nil
+  に置換されるので、 callee で再帰ができる。
+-------------------------------------------------
+(function f, xs => {
+  !if xs
+     (!cons (f !car xs) (callee f !cdr xs))
+     nil
+}) (function x => !print x) !cons 1 !cons 2 !cons 3 nil
