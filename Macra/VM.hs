@@ -8,14 +8,18 @@ import qualified Control.Monad.State as S
 data Value = Double Double
            | Char Char
            | List [Value]
-           | Closure Identifier Inst EnvRef
+           | Refered Value Identifier         --Pair of value and the refered key, used in thaw
+           | Closure Identifier Inst   EnvRef
+           | Thunk   Inst              EnvRef
            deriving (Eq, Ord)
 
 instance Show Value where
   show (Char c) = [c]
   show (Double i) = show i
   show (List xs) = concat ["(", concat (L.intersperse " " (map show xs)), ")"]
-  show (Closure var body e) = concat [show var, show body]
+  show (Closure var body e) = concat [show "Close: ", show var, show body]
+  show (Thunk body e) = show body
+  show (Refered val idf) = concat [show idf, show ":", show val]
 
 type Identifier = String
 data Inst = FrameInst  Inst       Inst           --hasnext
@@ -25,7 +29,9 @@ data Inst = FrameInst  Inst       Inst           --hasnext
           | CdrInst    Inst                      --hasnext
           | ArgInst    Inst                      --hasnext
           | CloseInst  Identifier Inst Inst      --hasnext
+          | FreezeInst Inst       Inst           --hasnext
           | ApplyInst
+          | ThawInst   Inst                      --hasnext
           | ReferInst  Identifier Inst           --hasnext
           | ReturnInst
           | TestInst   Inst       Inst
@@ -66,8 +72,8 @@ lookupVal id envRef mem =
     Nothing -> Nothing
     Just (e, parentEnvRef) ->
       case M.lookup id e of
-         Just val -> Just val
-         Nothing -> lookupVal id parentEnvRef mem
+        Just val -> Just val
+        Nothing -> lookupVal id parentEnvRef mem
 
 nil :: Value
 nil = List []
@@ -151,7 +157,7 @@ vm'' vmState@(VM a (ReferInst id nxt) envRef r s envMem) = do
       case lookupVal id envRef envMem of
         Just v -> do
           S.put vmState {
-                vmAcc = v
+                vmAcc = Refered v id --thaw needs id
               , vmInst = nxt
                 }
           vm'
@@ -183,6 +189,8 @@ vm'' vmState@(VM a (ArgInst nxt) e r s _) = do
           , vmInst = nxt
             }
       vm'
+
+-- ApplyInst applies a Closure to an argument
 vm'' vmState@(VM a ApplyInst _ (val:r) s mem) = do
       case a of
         (Closure var body envRef) -> do
@@ -199,6 +207,36 @@ vm'' vmState@(VM a ApplyInst _ (val:r) s mem) = do
           S.liftIO $ do
             putStr $ concat ["invalid application: ", show a]
           return ()
+
+-- ThawInst thaws thunks
+-- Call-by-name strategy thaws the thunk everytime the name is seen
+vm'' vmState@(VM (Refered a id) (ThawInst nxt) fnEnvRef _ _ mem) = do
+  case a of
+    (Thunk body envRef) -> do
+      S.put vmState {
+          vmAcc = a
+        , vmInst = body  -- evaluate the thunk
+        , vmEnvRef = envRef
+      }
+      vm'
+      newVMState@(VM acc _ _ _ _ mem') <- S.get
+      closedEnvRef <- S.lift U.newUnique
+      S.put newVMState {
+            vmInst = nxt   -- go to next instruction with the evaluated thunk on the accum
+          , vmEnvRef = closedEnvRef
+          , vmEnvMem = (M.insert closedEnvRef
+                                 ((M.fromList [ (id, acc) ]), fnEnvRef)
+                                 mem')
+      }
+      vm'
+    _ -> do
+      -- pass if the symbol is bound to non-thunk
+      S.put vmState {
+            vmAcc = a
+          , vmInst = nxt
+      }
+      vm'
+
 vm'' vmState@(VM a ReturnInst _ _ ((ret, envRef, r):s) _) = do
         S.put vmState {
               vmInst = ret
@@ -225,6 +263,14 @@ vm'' vmState@(VM a (TestInst thenExp elseExp) e r s mem)
 vm'' vmState@(VM a (CloseInst var body nxt) envRef r s mem) = do
         S.put vmState {
               vmAcc = Closure var body envRef
+            , vmInst = nxt
+              }
+        vm'
+        
+-- Thunk is Closure without param
+vm'' vmState@(VM a (FreezeInst body nxt) envRef r s mem) = do
+        S.put vmState {
+              vmAcc = Thunk body envRef
             , vmInst = nxt
               }
         vm'
