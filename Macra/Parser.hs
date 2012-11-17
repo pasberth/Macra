@@ -8,6 +8,7 @@ module Macra.Parser (Identifier(..),
                      parse) where
 
 import Control.Monad
+import qualified Control.Applicative as A
 import qualified Text.ParserCombinators.Parsec as P
 import Text.ParserCombinators.Parsec hiding (parse, spaces)
 
@@ -108,14 +109,10 @@ parseIdAsIdentifier = try parseSymIdAsIdentifier
                                                        containLetter = letter <|> oneOf "0123456789" <|> oneOf "-"
 
 parseMark :: Parser Node
-parseMark = try $ do
-          mark <- parseMarkAsIdentifer
-          return $ SymNode mark
+parseMark = A.pure SymNode A.<*> try parseMarkAsIdentifer
 
 parseId :: Parser Node
-parseId = try $ do
-        id <- parseIdAsIdentifier
-        return $ SymNode id
+parseId = A.pure SymNode A.<*> try parseIdAsIdentifier
 
 parseString :: Parser Node
 parseString = do
