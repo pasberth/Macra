@@ -163,7 +163,7 @@ vm'' vmState@(VM a (ReferInst id nxt) envRef r s envMem) = do
           vm'
         Nothing -> do
           S.liftIO $ do
-            putStr $ concat ["unbound variable: `", show id, "'"]
+            putStr $ concat ["unbound variable: `", id, "'"]
           return ()
 vm'' vmState@(VM a (DefineInst id nxt) envRef r s mem) = do
       case M.lookup envRef mem of
