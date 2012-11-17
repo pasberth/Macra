@@ -46,9 +46,8 @@ toplevelContext = "toplevel"
 emptyMacroMap :: MacroMap
 emptyMacroMap = M.fromList []
 
-macroDefine :: [ToplevelNode] -> MacroMap
-macroDefine ((EvalCxtTLNode x):xs) = macroDefine xs
-macroDefine ((MacCxtTLNode x):xs) = macroDefineMacCxtNode (macroDefine xs) x
+macroDefine :: [MacCxtNode] -> MacroMap
+macroDefine (x:xs) = macroDefineMacCxtNode (macroDefine xs) x
 macroDefine [] = emptyMacroMap
 
 macroDefineMacCxtNode :: MacroMap -> MacCxtNode -> MacroMap
@@ -216,16 +215,11 @@ macroReplaceSym param var arg
                 -- これは単に x を返す。
                 | otherwise = Right var
 
-compile :: MacroMap -> [ToplevelNode] -> Either CompileError Inst 
-compile mm ((MacCxtTLNode x):xs) = compile mm xs
-compile mm ((EvalCxtTLNode x):xs) =
+compile :: MacroMap -> Node -> Either CompileError Inst 
+compile mm x =
         case  (macroExpand mm toplevelContext x) of
-          Right node ->
-            case (compile mm xs) of
-              Right insts -> Right $ compileNode node insts
-              l@(Left err) -> l
+          Right node -> Right (compileNode node HaltInst)
           Left err -> Left (CompileExpandError err)
-compile mm [] = Right HaltInst
 
 
 compileNode :: Node -> Inst -> Inst

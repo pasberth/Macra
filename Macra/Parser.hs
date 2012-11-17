@@ -1,27 +1,19 @@
-module Macra.Parser (Identifier(..),
-                     ToplevelNode(..),
+module Macra.Parser (program,
+                     compileTimeExpr,
+                     Identifier(..),
                      MacCxtNode(..),
                      Node(..),
                      CxtId,
                      MacSig,
-                     MacParams,
-                     parse) where
+                     MacParams) where
 
 import Control.Monad
 import qualified Control.Applicative as A
 import qualified Text.ParserCombinators.Parsec as P
-import Text.ParserCombinators.Parsec hiding (parse, spaces)
+import Text.ParserCombinators.Parsec hiding (spaces)
 
 -- シンボルの id
 type Identifier = String
-
--- プログラムのトップレベルに書けるコード。
--- MacCxtNode と Node をひとつにまとめるための型。
--- TODO: Node は Node 、 MacCxtNode は MacCxtNode だけを返すパーサを
---       作った方がいいかも？
-data ToplevelNode = MacCxtTLNode MacCxtNode
-                  | EvalCxtTLNode Node
-                  deriving (Show, Eq)
 
 -- マクロ定義や、将来追加されるかもしれない
 -- #include など、 `#' から始まるコンパイル時の命令
@@ -81,12 +73,6 @@ instance Show Node where
 indent :: String -> String -> String
 indent idt node = foldl (\str x -> concat [str, "\n", idt,  x]) "" (lines node)
 indent2 node = indent "  " node
-
-parse :: FilePath -> String -> Either ParseError [ToplevelNode]
-parse fname program =
-      case P.parse parseProgram fname program of
-            Left x -> Left x
-            Right node -> Right node
 
 parseMarkAsIdentifer :: Parser Identifier
 parseMarkAsIdentifer = parseMarkAsIdentifer' <|> parseIdAsIdentifier
@@ -152,19 +138,12 @@ parseIntNumNonZero = try $ do
             where digit = oneOf "0123456789"
                   beginDigit = oneOf "123456789"
 
-parseProgram :: Parser [ToplevelNode]
-parseProgram = do
-             stats <- many $ parseEvalCxtStat <|> parseMacCxtStat
-             eof
-             return stats
-
-parseMacCxtStat :: Parser ToplevelNode
-parseMacCxtStat = parseMacDefTL
-                where parseMacDefTL = try $ do
+compileTimeExpr :: Parser [MacCxtNode]
+compileTimeExpr = parseMacDefTL
+                where parseMacDefTL = many $ try $ do
                                   skipSpaces
                                   string "#"
-                                  macDef <- parseMacDef
-                                  return $ MacCxtTLNode macDef
+                                  parseMacDef
 
 parseMacSig :: Parser MacSig
 parseMacSig = fnType <|> primType <?> "signature"
@@ -259,12 +238,8 @@ parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
                                                           parseIdAsIdentifier)
                                     return (id, params)
 
-parseEvalCxtStat :: Parser ToplevelNode
-parseEvalCxtStat = try $ do
-                 skipSpaces
-                 expr <- parseSemicolon
-                 skipSpaces
-                 return $ EvalCxtTLNode expr
+program :: Parser Node
+program = parseSemicolon
 
 parseExpr :: Parser Node
 parseExpr = parseLambdaSyntax <?> "a expression"
