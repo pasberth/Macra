@@ -355,80 +355,46 @@ parseVMInst :: Parser Node
 parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMDefine <|> parseVMFuncall <|> parseVMPrint <|> parseVMCons <|> parseVMCar <|> parseVMCdr <|> parseVMDo
 
 parseVMIf :: Parser Node
-parseVMIf = try $ do
-          string "!if"
-          requireSpaces
-          cond <- parseExpr
-          skipSpaces
-          thenExpr <- parseExpr
-          skipSpaces
-          elseExpr <- parseExpr
-          return $ IfNode cond thenExpr elseExpr
+parseVMIf = A.pure IfNode
+            A.<*> (try $ string "!if" >> requireSpaces >> parseExpr)
+            A.<*> (skipSpaces >> parseExpr)
+            A.<*> (skipSpaces >> parseExpr)
 
 parseVMLambda :: Parser Node
-parseVMLambda = try $ do
-              string "!lambda"
-              requireSpaces
-              id <- parseIdAsIdentifier
-              skipSpaces
-              expr <- parseExpr
-              return $ LambdaNode id expr
+parseVMLambda = A.pure LambdaNode
+                A.<*> (try $ string "!lambda" >> requireSpaces >> parseIdAsIdentifier)
+                A.<*> (skipSpaces >> parseExpr)
 
 parseVMDefine :: Parser Node
-parseVMDefine = try $ do
-              string "!define"
-              requireSpaces
-              id <- parseIdAsIdentifier
-              skipSpaces
-              expr <- parseExpr
-              return $ DefineNode id expr
+parseVMDefine = A.pure DefineNode
+                A.<*> (try $ string "!define" >> requireSpaces >> parseIdAsIdentifier)
+                A.<*> (skipSpaces >> parseExpr)
 
 parseVMFuncall :: Parser Node
-parseVMFuncall = try $ do
-               string "!funcall"
-               requireSpaces
-               f <- parseExpr
-               skipSpaces
-               a <- parseExpr
-               return $ FuncallNode f a
+parseVMFuncall = A.pure FuncallNode
+                 A.<*> (try $ string "!funcall" >> requireSpaces >> parseExpr)
+                 A.<*> (skipSpaces >> parseExpr)
 
 parseVMPrint :: Parser Node
-parseVMPrint = try $ do
-             string "!print"
-             requireSpaces
-             a <- parseExpr
-             return (PrintNode a)
+parseVMPrint = A.pure PrintNode
+               A.<*> (try $ string "!print" >> requireSpaces >> parseExpr)
 
 parseVMCons :: Parser Node
-parseVMCons = try $ do
-            string "!cons"
-            requireSpaces
-            a <- parseExpr
-            requireSpaces
-            b <- parseExpr
-            return (ConsNode a b)
+parseVMCons = A.pure ConsNode
+              A.<*> (try $ string "!cons" >> requireSpaces >> parseExpr)
+              A.<*> (requireSpaces >> parseExpr)
 
 parseVMCar :: Parser Node
-parseVMCar = try $ do
-           string "!car"
-           requireSpaces
-           a <- parseExpr
-           return (CarNode a)
+parseVMCar = A.pure CarNode
+             A.<*> (try $ string "!car" >> requireSpaces >> parseExpr)
 
 parseVMCdr :: Parser Node
-parseVMCdr = try $ do
-           string "!cdr"
-           requireSpaces
-           a <- parseExpr
-           return (CdrNode a)
+parseVMCdr = A.pure CdrNode
+             A.<*> (try $ string "!cdr" >> requireSpaces >> parseExpr)
 
-parseVMDo = try $ do
-          string "!do"
-          requireSpaces
-          a <- parseExpr
-          requireSpaces
-          b <- parseExpr
-          return (DoNode a b)
+parseVMDo = A.pure DoNode
+            A.<*> (try $ string "!do" >> requireSpaces >> parseExpr)
+            A.<*> (requireSpaces >> parseExpr)
 
 skipComment :: Parser ()
 skipComment = try $ do
