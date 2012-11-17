@@ -139,7 +139,7 @@ parseIntNumNonZero = try $ do
                   beginDigit = oneOf "123456789"
 
 compileTimeExpr :: Parser [MacCxtNode]
-compileTimeExpr = many1 $ try $ do
+compileTimeExpr = many $ try $ do
                     skipProgram
                     string "#"
                     parseMacDef
