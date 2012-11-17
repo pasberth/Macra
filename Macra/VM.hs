@@ -22,6 +22,7 @@ instance Show Value where
   show (Refered val idf) = concat [show idf, show ":", show val]
 
 type Identifier = String
+--data TwoArgFn = TwoArgFn (Double -> Double -> Double)
 data Inst = FrameInst  Inst       Inst           --hasnext
           | ConstExpr  Value      Inst           --hasnext
           | ConsInst   Inst                      --hasnext
@@ -38,8 +39,16 @@ data Inst = FrameInst  Inst       Inst           --hasnext
           | DefineInst Identifier Inst           --hasnext
           | HaltInst
           | PrintInst  Inst                      --hasnext
+          | NativeInst Integer Inst                  --hasnext
+          -- | NativeCallInst TwoArgFn Inst         --hasnext
           deriving (Show, Eq, Ord)
 
+{-instance Show TwoArgFn where
+  show _ = "x"
+instance  Eq TwoArgFn where
+  a == b = False
+instance  Ord TwoArgFn
+-}
 data VM = VM {
      vmAcc :: Value
    , vmInst :: Inst
@@ -77,6 +86,23 @@ lookupVal id envRef mem =
 
 nil :: Value
 nil = List []
+
+nativeFunction nativeId =
+  -- nativeIdは1から始まる4桁の数字とする。(なんとなく)
+  -- ここは将来Mapでマッチングさせる
+  case nativeId of
+      1001 -> \x -> \y -> Double (x + y)
+{-    1001 -> (CloseInst "x"
+              (CloseInst "y" 
+                (FrameInst 
+                  ReturnInst 
+                  (ReferInst "x"
+                    (ArgInst
+                      (ReferInst "y"
+                        (ArgInst
+                          (NativeCallInst (TwoArgFn (+)) ReturnInst)))))) ApplyInst)
+            nxt)
+-}
 
 vm :: Inst -> IO ()
 vm inst = do
@@ -208,6 +234,15 @@ vm'' vmState@(VM a ApplyInst _ (val:r) s mem) = do
             putStr $ concat ["invalid application: ", show a]
           return ()
 
+{-- NativeCallInst applies Haskell's function to values
+vm'' vmState@(VM a (NativeCallInst (TwoArgFn fn) nxt) _ ((Double x):(Double y):r) s mem) = do
+  S.liftIO $ print x
+  S.put vmState {
+    vmAcc = Double (fn x y)
+  , vmInst = nxt
+  }
+  vm'
+--}
 -- ThawInst thaws thunks
 -- Call-by-name strategy thaws the thunk everytime the name is seen
 vm'' vmState@(VM (Refered a id) (ThawInst nxt) fnEnvRef _ _ mem) = do
@@ -274,6 +309,15 @@ vm'' vmState@(VM a (FreezeInst body nxt) envRef r s mem) = do
             , vmInst = nxt
               }
         vm'
+
+-- native funcations --
+vm'' vmState@(VM _ (NativeInst nativeId nxt) _ ((Thunk (ConstExpr  (Double x) _) _):(Thunk (ConstExpr (Double y) _) _):r) _ _) = do
+        S.put vmState {
+              vmAcc = (nativeFunction nativeId) x y
+            ,  vmInst = nxt
+        }
+        vm'
+
 vm'' vmState = do
      S.liftIO $ do
        print "** VM BUG **: "
