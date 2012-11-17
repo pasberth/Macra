@@ -1,4 +1,4 @@
-#[ function a : function             -> toplevel = !lambda nil !do !define callee a callee nil ]
+#[ function a : function             -> toplevel = !lambda nil !define callee a nil ]
 #[ a, b       : symbol   -> function -> function = !lambda a b ]
 #[ a => b     : symbol   -> toplevel -> function = !lambda a b ]
 #[ {a}        : toplevel             -> toplevel = a ]
