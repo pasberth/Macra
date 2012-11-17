@@ -86,10 +86,7 @@ nativeFunction nativeId =
   case nativeId of
       1001 -> \x -> \y -> Double (x + y) -- Mathematical add
       1002 -> \x -> \y -> Double (x - y) -- Mathematical sub
-      1003 -> \x -> \y -> Double (x * y) -- Mathematical mul
-      1004 -> \x -> \y -> Double (x `div` y) -- Mathematical div
-      1005 -> \x -> \y -> Double (x `mod` y) -- Mathematical mod
-
+      
 
 vm :: Inst -> IO ()
 vm inst = do
@@ -289,9 +286,9 @@ vm'' vmState@(VM a (FreezeInst body nxt) envRef r s mem) = do
         vm'
 
 -- native funcations --
-vm'' vmState@(VM _ (NativeInst nativeId nxt) _ ((Thunk (ConstExpr  (Double x) _) _):(Thunk (ConstExpr (Double y) _) _):r) _ _) = do
+vm'' vmState@(VM _ (NativeInst nativeId nxt) e ((Thunk (ConstExpr  (Double x) _) _):(Thunk (ConstExpr (Double y) _) _):r) _ _) = do
         S.put vmState {
-              vmAcc = (nativeFunction nativeId) x y
+              vmAcc = Closure "x" (CloseInst "y" (ConstExpr ((nativeFunction nativeId) x y) ReturnInst) ReturnInst) e
             ,  vmInst = nxt
         }
         vm'
