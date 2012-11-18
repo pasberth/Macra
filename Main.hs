@@ -12,7 +12,7 @@ main = do
   case args of
     "--nodes":fname:xs -> do
       str <- readFile fname
-      case parse program fname str of
+      case parse runTimeExpr fname str of
            Left x -> print x
            Right x -> print x
     "--macro":fname:xs -> do
@@ -25,7 +25,7 @@ main = do
       case parse compileTimeExpr fname str of
            Left x -> print x
            Right x ->
-             case parse program fname str of
+             case parse runTimeExpr fname str of
                Left x -> print x
                Right expr -> print $ compile (macroDefine x) expr
     path:xs -> do
@@ -33,7 +33,7 @@ main = do
             case parse compileTimeExpr path str of
               Left x -> print x
               Right x ->
-                case parse program path str of
+                case parse runTimeExpr path str of
                   Left x -> print x
                   Right expr ->
                     case compile (macroDefine x) expr of

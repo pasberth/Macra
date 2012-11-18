@@ -1,4 +1,4 @@
-module Macra.Parser (program,
+module Macra.Parser (runTimeExpr,
                      compileTimeExpr,
                      Identifier(..),
                      MacCxtNode(..),
@@ -240,8 +240,8 @@ parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
                                                           parseIdAsIdentifier)
                                     return (id, params)
 
-program :: Parser Node
-program = try (skipSpaces >> parseSemicolon)
+runTimeExpr :: Parser Node
+runTimeExpr = try (skipSpaces >> parseSemicolon)
 
 parseExpr :: Parser Node
 parseExpr = parseLambdaSyntax <?> "a expression"
