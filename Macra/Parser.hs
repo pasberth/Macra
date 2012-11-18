@@ -42,6 +42,7 @@ data Node = SymNode Identifier
           | CarNode Node
           | CdrNode Node
           | DoNode Node Node
+          | NativeNode Integer
           -- macroExpand で展開済みのマクロを展開するのを防ぐノード
           -- macroExpand の実装では、
           --   #[ m a x : t -> t -> t = a ]
@@ -69,6 +70,7 @@ instance Show Node where
   show (CarNode a) = concat ["!car", show a]
   show (CdrNode a) = concat ["!cdr", show a]
   show (DoNode a b) = concat ["!do", (indent2 $ show a), (indent2 $ show b)]
+  show (NativeNode a) = "!native " ++ (show a)
 
 indent :: String -> String -> String
 indent idt node = foldl (\str x -> concat [str, "\n", idt,  x]) "" (lines node)
@@ -331,7 +333,7 @@ parseComma = try (do
            ) <?> "`,'"
 
 parseVMInst :: Parser Node
-parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMDefine <|> parseVMFuncall <|> parseVMPrint <|> parseVMCons <|> parseVMCar <|> parseVMCdr <|> parseVMDo
+parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMDefine <|> parseVMFuncall <|> parseVMPrint <|> parseVMCons <|> parseVMCar <|> parseVMCdr <|> parseVMDo <|> parseVMNative
 
 parseVMIf :: Parser Node
 parseVMIf = A.pure IfNode
@@ -374,6 +376,11 @@ parseVMCdr = A.pure CdrNode
 parseVMDo = A.pure DoNode
             A.<*> (try $ string "!do" >> requireSpaces >> parseExpr)
             A.<*> (requireSpaces >> parseExpr)
+
+-- nativeはIntのidで指定する
+parseVMNative :: Parser Node
+parseVMNative = A.pure NativeNode
+            A.<*> (try $ string "!native" >> requireSpaces >> parseIntNum)
 
 skipComment :: Parser ()
 skipComment = try $ do

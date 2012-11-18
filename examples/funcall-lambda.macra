@@ -1,0 +1,1 @@
+!funcall !lambda x !funcall !lambda x x 2 1

@@ -137,6 +137,7 @@ macroExpandRecur :: MacroMap -> Node -> Either ExpandError Node
 macroExpandRecur mm node@NilNode      = Right node
 macroExpandRecur mm node@(CharNode _) = Right node
 macroExpandRecur mm node@(NumNode _)  = Right node
+macroExpandRecur mm node@(NativeNode _) = Right node
 macroExpandRecur mm node@(PrintNode expr) =
   pure PrintNode <*> macroExpand mm toplevelContext expr
 macroExpandRecur mm (ConsNode a b) =
@@ -221,7 +222,6 @@ compile mm x =
           Right node -> Right (compileNode node HaltInst)
           Left err -> Left (CompileExpandError err)
 
-
 compileNode :: Node -> Inst -> Inst
 
 compileNode NilNode next =
@@ -251,3 +251,4 @@ compileNode (ConsNode a b) next = compileNode a (ArgInst (compileNode b (ConsIns
 compileNode (CarNode node) next = compileNode node (CarInst next)
 compileNode (CdrNode node) next = compileNode node (CdrInst next)
 compileNode (DoNode a b) next = compileNode a (compileNode b next)
+compileNode (NativeNode a) next = NativeInst a next
