@@ -302,24 +302,16 @@ parseLambdaSyntax :: Parser Node
 parseLambdaSyntax = parseEqualArrow <|> parseComma <|> parseBracketMaccall
 
 parseEqualArrow :: Parser Node
-parseEqualArrow = try (do
-                expr1 <- parseBracketMaccall
-                skipSpaces
-                string "=>"
-                skipSpaces
-                expr2 <- parseMaccall
-                return $ FuncallNode (FuncallNode (SymNode "=>") expr1) expr2
-                ) <?> "`=>'"
+parseEqualArrow = try $ A.pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
+                        A.<*> parseBracketMaccall
+                        A.<*> (skipSpaces >> string "=>")
+                        A.<*> (skipSpaces >> parseMaccall)
 
 parseComma :: Parser Node
-parseComma = try (do
-           expr1 <- parseBracketMaccall
-           skipSpaces
-           string ","
-           skipSpaces
-           expr2 <- parseMaccall
-           return $ FuncallNode (FuncallNode (SymNode ",") expr1) expr2
-           ) <?> "`,'"
+parseComma = try $ A.pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
+                   A.<*> parseBracketMaccall
+                   A.<*> (skipSpaces >> string ",")
+                   A.<*> (skipSpaces >> parseMaccall)
 
 parseVMInst :: Parser Node
 parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMDefine <|> parseVMFuncall <|> parseVMPrint <|> parseVMCons <|> parseVMCar <|> parseVMCdr <|> parseVMDo <|> parseVMNative
