@@ -244,9 +244,6 @@ parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
 runTimeExpr :: Parser Node
 runTimeExpr = try (skipSpaces >> parseSemicolon)
 
-parseExpr :: Parser Node
-parseExpr = parseLambdaSyntax <?> "a expression"
-
 -- もっとも優先順位の低い中置関数。
 -- a; b; c は a ; (b ; c) のように右に再帰する。
 -- semicolon-expression:
@@ -384,6 +381,10 @@ parseVMInst = try $ string "!" >> (excIf <|> excLambda <|> excDefine <|>
                   excNative :: Parser Node
                   excNative = pure NativeNode
                               <*> (try $ string "native" >> requireSpaces >> parseIntNum)
+
+                  parseExpr :: Parser Node
+                  parseExpr = parseLambdaSyntax <?> "a expression"
+
 
 skipComment :: Parser ()
 skipComment = try $ do
