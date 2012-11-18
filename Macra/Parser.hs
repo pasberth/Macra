@@ -1,28 +1,33 @@
-module Macra.Parser (Identifier(..),
-                     ToplevelNode(..),
+module Macra.Parser (program,
+                     compileTimeExpr,
+                     Identifier(..),
                      MacCxtNode(..),
                      Node(..),
                      CxtId,
                      MacSig,
-                     MacParams,
-                     parse) where
+                     MacParams) where
 
 import Control.Monad
+import qualified Control.Applicative as A
 import qualified Text.ParserCombinators.Parsec as P
-import Text.ParserCombinators.Parsec hiding (parse, spaces)
+import Text.ParserCombinators.Parsec hiding (spaces)
 
+-- シンボルの id
 type Identifier = String
-data ToplevelNode = MacCxtTLNode MacCxtNode
-                  | EvalCxtTLNode Node
-                  deriving (Show, Eq)
 
-data MacCxtNode = MacDef1MNode Identifier MacSig MacParams Node
+-- マクロ定義や、将来追加されるかもしれない
+-- #include など、 `#' から始まるコンパイル時の命令
+data MacCxtNode -- 普通のマクロ定義。
+                -- #[ m a : t -> u = a ]
+                = MacDef1MNode Identifier MacSig MacParams Node
+                -- 関数に対するコンテキストの定義。
+                -- # f :: t -> u
                 | MacDef2MNode Identifier MacSig MacParams
                 deriving (Show, Eq)
 
-type CxtId = String
-type MacSig = [CxtId]
-type MacParams = [Identifier]
+type CxtId = String              -- マクロのコンテキストのid
+type MacSig = [CxtId]            -- マクロのシグネチャ
+type MacParams = [Identifier]    -- マクロの仮引数
 
 data Node = SymNode Identifier
           | CharNode Char
@@ -37,6 +42,16 @@ data Node = SymNode Identifier
           | CarNode Node
           | CdrNode Node
           | DoNode Node Node
+          | NativeNode Integer
+          -- macroExpand で展開済みのマクロを展開するのを防ぐノード
+          -- macroExpand の実装では、
+          --   #[ m a x : t -> t -> t = a ]
+          --   m x w
+          -- のように書くと、
+          --   まず `a' が x に置換され、
+          -- そのあと置換後の `x' が `w' に置換される。
+          -- TODO: これは設計が汚いか？ 
+          --       MacroNode を消してmacroExpandのほうでなんとかすべき。
           | MacroNode Node
           deriving (Eq)
 
@@ -55,16 +70,11 @@ instance Show Node where
   show (CarNode a) = concat ["!car", show a]
   show (CdrNode a) = concat ["!cdr", show a]
   show (DoNode a b) = concat ["!do", (indent2 $ show a), (indent2 $ show b)]
+  show (NativeNode a) = "!native " ++ (show a)
 
 indent :: String -> String -> String
 indent idt node = foldl (\str x -> concat [str, "\n", idt,  x]) "" (lines node)
 indent2 node = indent "  " node
-
-parse :: FilePath -> String -> Either ParseError [ToplevelNode]
-parse fname program =
-      case P.parse parseProgram fname program of
-            Left x -> Left x
-            Right node -> Right node
 
 parseMarkAsIdentifer :: Parser Identifier
 parseMarkAsIdentifer = parseMarkAsIdentifer' <|> parseIdAsIdentifier
@@ -87,14 +97,10 @@ parseIdAsIdentifier = try parseSymIdAsIdentifier
                                                        containLetter = letter <|> oneOf "0123456789" <|> oneOf "-"
 
 parseMark :: Parser Node
-parseMark = try $ do
-          mark <- parseMarkAsIdentifer
-          return $ SymNode mark
+parseMark = A.pure SymNode A.<*> try parseMarkAsIdentifer
 
 parseId :: Parser Node
-parseId = try $ do
-        id <- parseIdAsIdentifier
-        return $ SymNode id
+parseId = A.pure SymNode A.<*> try parseIdAsIdentifier
 
 parseString :: Parser Node
 parseString = do
@@ -134,19 +140,12 @@ parseIntNumNonZero = try $ do
             where digit = oneOf "0123456789"
                   beginDigit = oneOf "123456789"
 
-parseProgram :: Parser [ToplevelNode]
-parseProgram = do
-             stats <- many $ parseEvalCxtStat <|> parseMacCxtStat
-             eof
-             return stats
-
-parseMacCxtStat :: Parser ToplevelNode
-parseMacCxtStat = parseMacDefTL
-                where parseMacDefTL = try $ do
-                                  skipSpaces
-                                  string "#"
-                                  macDef <- parseMacDef
-                                  return $ MacCxtTLNode macDef
+compileTimeExpr :: Parser [MacCxtNode]
+compileTimeExpr = many $ try $ do
+                    skipProgram
+                    string "#"
+                    parseMacDef
+                 where skipProgram = skipMany $ noneOf "#"
 
 parseMacSig :: Parser MacSig
 parseMacSig = fnType <|> primType <?> "signature"
@@ -241,12 +240,12 @@ parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
                                                           parseIdAsIdentifier)
                                     return (id, params)
 
-parseEvalCxtStat :: Parser ToplevelNode
-parseEvalCxtStat = try $ do
-                 skipSpaces
-                 expr <- parseSemicolon
-                 skipSpaces
-                 return $ EvalCxtTLNode expr
+program :: Parser Node
+program = try (skipSpacesAndCompileTimeExpressions >> parseSemicolon)
+        where skipSpacesAndCompileTimeExpressions = do
+                skipSpaces
+                try (string "#" >> parseMacDef >> skipSpacesAndCompileTimeExpressions)
+                  <|> return ()
 
 parseExpr :: Parser Node
 parseExpr = parseLambdaSyntax <?> "a expression"
@@ -334,83 +333,54 @@ parseComma = try (do
            ) <?> "`,'"
 
 parseVMInst :: Parser Node
-parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMDefine <|> parseVMFuncall <|> parseVMPrint <|> parseVMCons <|> parseVMCar <|> parseVMCdr <|> parseVMDo
+parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMDefine <|> parseVMFuncall <|> parseVMPrint <|> parseVMCons <|> parseVMCar <|> parseVMCdr <|> parseVMDo <|> parseVMNative
 
 parseVMIf :: Parser Node
-parseVMIf = try $ do
-          string "!if"
-          requireSpaces
-          cond <- parseExpr
-          skipSpaces
-          thenExpr <- parseExpr
-          skipSpaces
-          elseExpr <- parseExpr
-          return $ IfNode cond thenExpr elseExpr
+parseVMIf = A.pure IfNode
+            A.<*> (try $ string "!if" >> requireSpaces >> parseExpr)
+            A.<*> (skipSpaces >> parseExpr)
+            A.<*> (skipSpaces >> parseExpr)
 
 parseVMLambda :: Parser Node
-parseVMLambda = try $ do
-              string "!lambda"
-              requireSpaces
-              id <- parseIdAsIdentifier
-              skipSpaces
-              expr <- parseExpr
-              return $ LambdaNode id expr
+parseVMLambda = A.pure LambdaNode
+                A.<*> (try $ string "!lambda" >> requireSpaces >> parseIdAsIdentifier)
+                A.<*> (skipSpaces >> parseExpr)
 
 parseVMDefine :: Parser Node
-parseVMDefine = try $ do
-              string "!define"
-              requireSpaces
-              id <- parseIdAsIdentifier
-              skipSpaces
-              expr <- parseExpr
-              return $ DefineNode id expr
+parseVMDefine = A.pure DefineNode
+                A.<*> (try $ string "!define" >> requireSpaces >> parseIdAsIdentifier)
+                A.<*> (skipSpaces >> parseExpr)
 
 parseVMFuncall :: Parser Node
-parseVMFuncall = try $ do
-               string "!funcall"
-               requireSpaces
-               f <- parseExpr
-               skipSpaces
-               a <- parseExpr
-               return $ FuncallNode f a
+parseVMFuncall = A.pure FuncallNode
+                 A.<*> (try $ string "!funcall" >> requireSpaces >> parseExpr)
+                 A.<*> (skipSpaces >> parseExpr)
 
 parseVMPrint :: Parser Node
-parseVMPrint = try $ do
-             string "!print"
-             requireSpaces
-             a <- parseExpr
-             return (PrintNode a)
+parseVMPrint = A.pure PrintNode
+               A.<*> (try $ string "!print" >> requireSpaces >> parseExpr)
 
 parseVMCons :: Parser Node
-parseVMCons = try $ do
-            string "!cons"
-            requireSpaces
-            a <- parseExpr
-            requireSpaces
-            b <- parseExpr
-            return (ConsNode a b)
+parseVMCons = A.pure ConsNode
+              A.<*> (try $ string "!cons" >> requireSpaces >> parseExpr)
+              A.<*> (requireSpaces >> parseExpr)
 
 parseVMCar :: Parser Node
-parseVMCar = try $ do
-           string "!car"
-           requireSpaces
-           a <- parseExpr
-           return (CarNode a)
+parseVMCar = A.pure CarNode
+             A.<*> (try $ string "!car" >> requireSpaces >> parseExpr)
 
 parseVMCdr :: Parser Node
-parseVMCdr = try $ do
-           string "!cdr"
-           requireSpaces
-           a <- parseExpr
-           return (CdrNode a)
+parseVMCdr = A.pure CdrNode
+             A.<*> (try $ string "!cdr" >> requireSpaces >> parseExpr)
 
-parseVMDo = try $ do
-          string "!do"
-          requireSpaces
-          a <- parseExpr
-          requireSpaces
-          b <- parseExpr
-          return (DoNode a b)
+parseVMDo = A.pure DoNode
+            A.<*> (try $ string "!do" >> requireSpaces >> parseExpr)
+            A.<*> (requireSpaces >> parseExpr)
+
+-- nativeはIntのidで指定する
+parseVMNative :: Parser Node
+parseVMNative = A.pure NativeNode
+            A.<*> (try $ string "!native" >> requireSpaces >> parseIntNum)
 
 skipComment :: Parser ()
 skipComment = try $ do

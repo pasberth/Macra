@@ -1,0 +1,21 @@
+#[ (a)  : toplevel             -> toplevel = a       ]
+#[ a; b : toplevel -> toplevel -> toplevel = !do a b ]
+
+!define true
+  !lambda then
+    !lambda else
+      then;
+
+!define false
+  !lambda then
+    !lambda else
+      else;
+
+!define if
+  !lambda bool
+    !lambda then
+      !lambda else
+        (bool then else);
+
+if true (!print "遅延評価なので") (!print "遅延評価なのでこれは表示されない!");
+if false (!print "遅延評価なのでこれは表示されない!") (!print "if も関数にできる!")
