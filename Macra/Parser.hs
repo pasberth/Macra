@@ -200,10 +200,10 @@ semicolon = try semicolon' <|> funcall
                            <*> (skipSpaces >> semicolon)
 
 -- funcall-expression:
---   funcall-expression lambda-expression
---   funcall-expression :identifier lambda-expression
+--   funcall-expression arrow-expression
+--   funcall-expression :identifier arrow-expression
 --   funcall-expression @identifier
---   lambda-expression
+--   arrow-expression
 funcall :: Parser Node
 funcall = parseMaccall' <?> "one of prefix/infix/suffix"
              where maccall = infixOp <|> prefixOp
@@ -255,10 +255,13 @@ arrow = equalArrow <|> comma <|> prim
                                       <*> (skipSpaces >> funcall)
 
 
--- bracket-expression:
+-- primary-expression:
 --   [ semicolon-expression ]
 --   { semicolon-expression }
 --   ( semicolon-expression )
+--   exclam-expression
+--   identifier
+--   constant
 prim :: Parser Node
 prim = brackets <|> exclamExpr <|> strLit <|> charLit <|> id <|> parseNumber
      where bracket beg end = try $ do { string beg
