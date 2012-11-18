@@ -194,7 +194,7 @@ parseMacDef = parseMacDef2 <|> parseMacDef1 <?> "macro defination"
                                requireSpaces
                                string "="
                                requireSpaces
-                               defi <- parseSemicolon
+                               defi <- semicolon
                                skipSpaces
                                string "]"
                                return $ MacDef1MNode id sig params (MacroNode defi)
@@ -242,19 +242,19 @@ parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
                                     return (id, params)
 
 runTimeExpr :: Parser Node
-runTimeExpr = try (skipSpaces >> parseSemicolon)
+runTimeExpr = try (skipSpaces >> semicolon)
 
 -- もっとも優先順位の低い中置関数。
 -- a; b; c は a ; (b ; c) のように右に再帰する。
 -- semicolon-expression:
 --   funcall-expression; semicolon-expression
 --   funcall-expression
-parseSemicolon :: Parser Node
-parseSemicolon = try parseSemicolon' <|> parseMaccall
-               where parseSemicolon' = pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
-                                       <*> parseMaccall
-                                       <*> (skipSpaces >> string ";")
-                                       <*> (skipSpaces >> parseSemicolon)
+semicolon :: Parser Node
+semicolon = try semicolon' <|> parseMaccall
+          where semicolon' = pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
+                           <*> parseMaccall
+                           <*> (skipSpaces >> string ";")
+                           <*> (skipSpaces >> semicolon)
 
 -- funcall-expression:
 --   funcall-expression lambda-expression
@@ -321,7 +321,7 @@ parseBracketMaccall = parseBracket <|> exclamExpr <|> parseString <|> parseChar 
                     where bracket beg end = try $ do {
                                         string beg
                                         ; skipSpaces
-                                        ; expr <- parseSemicolon
+                                        ; expr <- semicolon
                                         ; skipSpaces
                                         ; string end
                                         ; return (FuncallNode (SymNode beg) expr)
