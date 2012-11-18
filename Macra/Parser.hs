@@ -154,13 +154,12 @@ parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
                              suffixOp = try $ do
                                    params <- many1 parseIdAsIdentifier
                                    skipSpaces
-                                   id <- string "@" >> parseMarkAsIdentifer
+                                   id <- string "@" >> mark
                                    return (id, params)
                              infixOp = try $ do
                                    param1 <- parseIdAsIdentifier
                                    skipSpaces
-                                   id <- (try $ string ":" >>
-                                                parseMarkAsIdentifer)
+                                   id <- (try $ string ":" >> mark)
                                          <|> (try $ do
                                                   sym <- string "=>"
                                                   return sym)
@@ -213,7 +212,7 @@ funcall = parseMaccall' <?> "one of prefix/infix/suffix"
                    infixOp = try $ do
                            skipSpaces
                            string ":"
-                           id <- parseMark
+                           id <- pure SymNode <*> try mark
                            skipSpaces
                            return $ a (FuncallNode id)
                    a :: (Node -> Node) -> Node -> Node -> Node
@@ -221,7 +220,7 @@ funcall = parseMaccall' <?> "one of prefix/infix/suffix"
                    suffixOp = try $ do
                             skipSpaces
                             string "@"
-                            id <- parseMark
+                            id <- pure SymNode <*> try mark
                             return $ FuncallNode id
                    parseMaccall' = try $ do
                                  expr1 <- arrow
@@ -291,15 +290,15 @@ prim = brackets <|> exclamExpr <|> strLit <|> charLit <|> id <|> parseNumber
            charLit = liftM CharNode (prefix >> anyChar)
                    where prefix = try $ string "$'"
 
-parseMarkAsIdentifer :: Parser Identifier
-parseMarkAsIdentifer = parseMarkAsIdentifer' <|> parseIdAsIdentifier
-          where parseMarkAsIdentifer' = try $ do
-                a <- beginLetter
-                b <- many containLetter
-                return (a:b)
-                -- ruby -e 'puts [*33..47, *58..64, *91..96, *123..126].map(&:chr).join'
-                where beginLetter = oneOf "!\"#$%&'()*+,-./;<=>?@[\\]^_`{|}~"
-                      containLetter = beginLetter
+mark :: Parser Identifier
+mark = parseMarkAsIdentifer' <|> parseIdAsIdentifier
+     where parseMarkAsIdentifer' = try $ do
+           a <- beginLetter
+           b <- many containLetter
+           return (a:b)
+           -- ruby -e 'puts [*33..47, *58..64, *91..96, *123..126].map(&:chr).join'
+           where beginLetter = oneOf "!\"#$%&'()*+,-./;<=>?@[\\]^_`{|}~"
+                 containLetter = beginLetter
 
 
 parseIdAsIdentifier :: Parser Identifier
@@ -310,9 +309,6 @@ parseIdAsIdentifier = try parseSymIdAsIdentifier
                                                  return (a:b)
                                                  where beginLetter = letter
                                                        containLetter = letter <|> oneOf "0123456789" <|> oneOf "-"
-
-parseMark :: Parser Node
-parseMark = pure SymNode <*> try parseMarkAsIdentifer
 
 parseNumber :: Parser Node
 parseNumber = parseFloatNum <|> parseIntNumAsFloat <?> "a number"
