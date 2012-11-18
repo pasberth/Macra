@@ -317,7 +317,7 @@ parseLambdaSyntax = equalArrow <|> comma <|> parseBracketMaccall
 --   { semicolon-expression }
 --   ( semicolon-expression )
 parseBracketMaccall :: Parser Node
-parseBracketMaccall = parseBracket <|> parseVMInst <|> parseString <|> parseChar <|> parseId <|> parseNumber
+parseBracketMaccall = parseBracket <|> exclamExpr <|> parseString <|> parseChar <|> parseId <|> parseNumber
                     where bracket beg end = try $ do {
                                         string beg
                                         ; skipSpaces
@@ -330,10 +330,10 @@ parseBracketMaccall = parseBracket <|> parseVMInst <|> parseString <|> parseChar
                                        bracket "(" ")" <|>
                                        bracket "{" "}"
 
-parseVMInst :: Parser Node
-parseVMInst = try $ string "!" >> (excIf <|> excLambda <|> excDefine <|>
+exclamExpr :: Parser Node
+exclamExpr = try $ string "!" >> ( excIf <|> excLambda <|> excDefine <|>
                                    excFuncall <|> excPrint <|> excCons <|>
-                                   excCar <|> excCdr <|> excDo <|> excNative)
+                                   excCar <|> excCdr <|> excDo <|> excNative )
             where excIf :: Parser Node
                   excIf = pure IfNode
                           <*> (try $ string "if" >> requireSpaces >> parseExpr)
