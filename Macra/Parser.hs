@@ -147,17 +147,17 @@ parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
                              bracket beg end = try $ do
                                      string beg
                                      skipSpaces
-                                     param <- parseIdAsIdentifier
+                                     param <- symbol
                                      skipSpaces
                                      string end
                                      return (beg, [param])
                              suffixOp = try $ do
-                                   params <- many1 parseIdAsIdentifier
+                                   params <- many1 symbol
                                    skipSpaces
                                    id <- string "@" >> mark
                                    return (id, params)
                              infixOp = try $ do
-                                   param1 <- parseIdAsIdentifier
+                                   param1 <- symbol
                                    skipSpaces
                                    id <- (try $ string ":" >> mark)
                                          <|> (try $ do
@@ -170,15 +170,13 @@ parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
                                                   sym <- (string ";")
                                                   return sym)
                                    skipSpaces
-                                   param2 <- parseIdAsIdentifier
-                                   params <- many (try $ requireSpaces >>
-                                                         parseIdAsIdentifier)
+                                   param2 <- symbol
+                                   params <- many (try $ requireSpaces >> symbol)
                                    return (id, (param1:param2:params))
                              prefixOp = try $ do
-                                    id <- parseIdAsIdentifier
-                                    params <- many (try $ requireSpaces >>
-                                                          parseIdAsIdentifier)
-                                    return (id, params)
+                                     id <- symbol
+                                     params <- many (try $ requireSpaces >> symbol)
+                                     return (id, params)
 
 ----------------------------------------
 -- Runtime Expression
@@ -275,7 +273,7 @@ prim = brackets <|> exclamExpr <|> strLit <|> charLit <|> id <|> parseNumber
                       bracket "{" "}"
 
            id :: Parser Node
-           id = pure SymNode <*> try parseIdAsIdentifier
+           id = pure SymNode <*> try symbol
 
            strLit :: Parser Node
            strLit = do
@@ -291,7 +289,7 @@ prim = brackets <|> exclamExpr <|> strLit <|> charLit <|> id <|> parseNumber
                    where prefix = try $ string "$'"
 
 mark :: Parser Identifier
-mark = parseMarkAsIdentifer' <|> parseIdAsIdentifier
+mark = parseMarkAsIdentifer' <|> symbol
      where parseMarkAsIdentifer' = try $ do
            a <- beginLetter
            b <- many containLetter
@@ -301,14 +299,14 @@ mark = parseMarkAsIdentifer' <|> parseIdAsIdentifier
                  containLetter = beginLetter
 
 
-parseIdAsIdentifier :: Parser Identifier
-parseIdAsIdentifier = try parseSymIdAsIdentifier
-                    where parseSymIdAsIdentifier = do
-                                                 a <- beginLetter
-                                                 b <- many containLetter
-                                                 return (a:b)
-                                                 where beginLetter = letter
-                                                       containLetter = letter <|> oneOf "0123456789" <|> oneOf "-"
+symbol :: Parser Identifier
+symbol = try parseSymIdAsIdentifier
+       where parseSymIdAsIdentifier = do
+                                    a <- beginLetter
+                                    b <- many containLetter
+                                    return (a:b)
+                                    where beginLetter = letter
+                                          containLetter = letter <|> oneOf "0123456789" <|> oneOf "-"
 
 parseNumber :: Parser Node
 parseNumber = parseFloatNum <|> parseIntNumAsFloat <?> "a number"
@@ -347,12 +345,12 @@ exclamExpr = try $ string "!" >> ( excIf <|> excLambda <|> excDefine <|>
 
                   excLambda :: Parser Node
                   excLambda = pure LambdaNode
-                              <*> (try $ string "lambda" >> requireSpaces >> parseIdAsIdentifier)
+                              <*> (try $ string "lambda" >> requireSpaces >> symbol)
                               <*> (skipSpaces >> parseExpr)
 
                   excDefine :: Parser Node
                   excDefine = pure DefineNode
-                              <*> (try $ string "define" >> requireSpaces >> parseIdAsIdentifier)
+                              <*> (try $ string "define" >> requireSpaces >> symbol)
                               <*> (skipSpaces >> parseExpr)
 
                   excFuncall :: Parser Node
