@@ -8,7 +8,8 @@ module Macra.Parser (runTimeExpr,
                      MacParams) where
 
 import Control.Monad
-import qualified Control.Applicative as A
+import Control.Applicative hiding ( (<|>)
+                                  , many )
 import qualified Text.ParserCombinators.Parsec as P
 import Text.ParserCombinators.Parsec hiding (spaces)
 
@@ -97,10 +98,10 @@ parseIdAsIdentifier = try parseSymIdAsIdentifier
                                                        containLetter = letter <|> oneOf "0123456789" <|> oneOf "-"
 
 parseMark :: Parser Node
-parseMark = A.pure SymNode A.<*> try parseMarkAsIdentifer
+parseMark = pure SymNode <*> try parseMarkAsIdentifer
 
 parseId :: Parser Node
-parseId = A.pure SymNode A.<*> try parseIdAsIdentifier
+parseId = pure SymNode <*> try parseIdAsIdentifier
 
 parseString :: Parser Node
 parseString = do
@@ -253,10 +254,10 @@ parseExpr = parseLambdaSyntax <?> "a expression"
 --   funcall-expression
 parseSemicolon :: Parser Node
 parseSemicolon = try parseSemicolon' <|> parseMaccall
-               where parseSemicolon' = A.pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
-                                       A.<*> parseMaccall
-                                       A.<*> (skipSpaces >> string ";")
-                                       A.<*> (skipSpaces >> parseSemicolon)
+               where parseSemicolon' = pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
+                                       <*> parseMaccall
+                                       <*> (skipSpaces >> string ";")
+                                       <*> (skipSpaces >> parseSemicolon)
 
 -- funcall-expression:
 --   funcall-expression lambda-expression
@@ -302,16 +303,16 @@ parseMaccall = parseMaccall' <?> "one of prefix/infix/suffix"
 parseLambdaSyntax :: Parser Node
 parseLambdaSyntax = equalArrow <|> comma <|> parseBracketMaccall
                   where equalArrow :: Parser Node
-                        equalArrow = try $ A.pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
-                                           A.<*> parseBracketMaccall
-                                           A.<*> (skipSpaces >> string "=>")
-                                           A.<*> (skipSpaces >> parseMaccall)
+                        equalArrow = try $ pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
+                                           <*> parseBracketMaccall
+                                           <*> (skipSpaces >> string "=>")
+                                           <*> (skipSpaces >> parseMaccall)
 
                         comma :: Parser Node
-                        comma = try $ A.pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
-                                      A.<*> parseBracketMaccall
-                                      A.<*> (skipSpaces >> string ",")
-                                      A.<*> (skipSpaces >> parseMaccall)
+                        comma = try $ pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
+                                      <*> parseBracketMaccall
+                                      <*> (skipSpaces >> string ",")
+                                      <*> (skipSpaces >> parseMaccall)
 
 
 -- bracket-expression:
@@ -337,52 +338,52 @@ parseVMInst = try $ string "!" >> (excIf <|> excLambda <|> excDefine <|>
                                    excFuncall <|> excPrint <|> excCons <|>
                                    excCar <|> excCdr <|> excDo <|> excNative)
             where excIf :: Parser Node
-                  excIf = A.pure IfNode
-                          A.<*> (try $ string "if" >> requireSpaces >> parseExpr)
-                          A.<*> (skipSpaces >> parseExpr)
-                          A.<*> (skipSpaces >> parseExpr)
+                  excIf = pure IfNode
+                          <*> (try $ string "if" >> requireSpaces >> parseExpr)
+                          <*> (skipSpaces >> parseExpr)
+                          <*> (skipSpaces >> parseExpr)
 
                   excLambda :: Parser Node
-                  excLambda = A.pure LambdaNode
-                              A.<*> (try $ string "lambda" >> requireSpaces >> parseIdAsIdentifier)
-                              A.<*> (skipSpaces >> parseExpr)
+                  excLambda = pure LambdaNode
+                              <*> (try $ string "lambda" >> requireSpaces >> parseIdAsIdentifier)
+                              <*> (skipSpaces >> parseExpr)
 
                   excDefine :: Parser Node
-                  excDefine = A.pure DefineNode
-                              A.<*> (try $ string "define" >> requireSpaces >> parseIdAsIdentifier)
-                              A.<*> (skipSpaces >> parseExpr)
+                  excDefine = pure DefineNode
+                              <*> (try $ string "define" >> requireSpaces >> parseIdAsIdentifier)
+                              <*> (skipSpaces >> parseExpr)
 
                   excFuncall :: Parser Node
-                  excFuncall = A.pure FuncallNode
-                               A.<*> (try $ string "funcall" >> requireSpaces >> parseExpr)
-                               A.<*> (skipSpaces >> parseExpr)
+                  excFuncall = pure FuncallNode
+                               <*> (try $ string "funcall" >> requireSpaces >> parseExpr)
+                               <*> (skipSpaces >> parseExpr)
 
                   excPrint :: Parser Node
-                  excPrint = A.pure PrintNode
-                             A.<*> (try $ string "print" >> requireSpaces >> parseExpr)
+                  excPrint = pure PrintNode
+                             <*> (try $ string "print" >> requireSpaces >> parseExpr)
 
                   excCons :: Parser Node
-                  excCons = A.pure ConsNode
-                            A.<*> (try $ string "cons" >> requireSpaces >> parseExpr)
-                            A.<*> (requireSpaces >> parseExpr)
+                  excCons = pure ConsNode
+                            <*> (try $ string "cons" >> requireSpaces >> parseExpr)
+                            <*> (requireSpaces >> parseExpr)
 
                   excCar :: Parser Node
-                  excCar = A.pure CarNode
-                           A.<*> (try $ string "car" >> requireSpaces >> parseExpr)
+                  excCar = pure CarNode
+                           <*> (try $ string "car" >> requireSpaces >> parseExpr)
 
                   excCdr :: Parser Node
-                  excCdr = A.pure CdrNode
-                           A.<*> (try $ string "cdr" >> requireSpaces >> parseExpr)
+                  excCdr = pure CdrNode
+                           <*> (try $ string "cdr" >> requireSpaces >> parseExpr)
 
                   excDo :: Parser Node
-                  excDo = A.pure DoNode
-                          A.<*> (try $ string "do" >> requireSpaces >> parseExpr)
-                          A.<*> (requireSpaces >> parseExpr)
+                  excDo = pure DoNode
+                          <*> (try $ string "do" >> requireSpaces >> parseExpr)
+                          <*> (requireSpaces >> parseExpr)
 
                   -- nativeはIntのidで指定する
                   excNative :: Parser Node
-                  excNative = A.pure NativeNode
-                              A.<*> (try $ string "native" >> requireSpaces >> parseIntNum)
+                  excNative = pure NativeNode
+                              <*> (try $ string "native" >> requireSpaces >> parseIntNum)
 
 skipComment :: Parser ()
 skipComment = try $ do
