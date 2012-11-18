@@ -281,10 +281,10 @@ funcall = parseMaccall' <?> "one of prefix/infix/suffix"
                             id <- parseMark
                             return $ FuncallNode id
                    parseMaccall' = try $ do
-                                 expr1 <- parseLambdaSyntax
+                                 expr1 <- arrow
                                  sfxes <- many ((try $ do {
                                        op <- maccall
-                                       ; expr2 <- parseLambdaSyntax
+                                       ; expr2 <- arrow
                                        ; return $ (\node -> op node expr2)
                                        }) <|> (try $ do {
                                          op <- suffixOp
@@ -293,21 +293,21 @@ funcall = parseMaccall' <?> "one of prefix/infix/suffix"
                                  return $ foldl (\expr sfx -> sfx expr) expr1 sfxes
 
 
--- lambda-expression:
---   bracket-expression => funcall-expression
---   bracket-expression , funcall-expression
---   bracket-expression
-parseLambdaSyntax :: Parser Node
-parseLambdaSyntax = equalArrow <|> comma <|> parseBracketMaccall
+-- arrow-expression:
+--   primary-expression => funcall-expression
+--   primary-expression , funcall-expression
+--   primary-expression
+arrow :: Parser Node
+arrow = equalArrow <|> comma <|> prim
                   where equalArrow :: Parser Node
                         equalArrow = try $ pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
-                                           <*> parseBracketMaccall
+                                           <*> prim
                                            <*> (skipSpaces >> string "=>")
                                            <*> (skipSpaces >> funcall)
 
                         comma :: Parser Node
                         comma = try $ pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
-                                      <*> parseBracketMaccall
+                                      <*> prim
                                       <*> (skipSpaces >> string ",")
                                       <*> (skipSpaces >> funcall)
 
@@ -316,8 +316,8 @@ parseLambdaSyntax = equalArrow <|> comma <|> parseBracketMaccall
 --   [ semicolon-expression ]
 --   { semicolon-expression }
 --   ( semicolon-expression )
-parseBracketMaccall :: Parser Node
-parseBracketMaccall = parseBracket <|> exclamExpr <|> parseString <|> parseChar <|> parseId <|> parseNumber
+prim :: Parser Node
+prim = parseBracket <|> exclamExpr <|> parseString <|> parseChar <|> parseId <|> parseNumber
                     where bracket beg end = try $ do {
                                         string beg
                                         ; skipSpaces
@@ -383,7 +383,7 @@ exclamExpr = try $ string "!" >> ( excIf <|> excLambda <|> excDefine <|>
                               <*> (try $ string "native" >> requireSpaces >> parseIntNum)
 
                   parseExpr :: Parser Node
-                  parseExpr = parseLambdaSyntax <?> "a expression"
+                  parseExpr = arrow <?> "a expression"
 
 
 skipComment :: Parser ()
