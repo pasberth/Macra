@@ -247,18 +247,11 @@ parseExpr :: Parser Node
 parseExpr = parseLambdaSyntax <?> "a expression"
 
 parseSemicolon :: Parser Node
-parseSemicolon = parseSemicolon' <|> parseMaccall
-               where parseSemicolon' = try $ do
-                                     expr1 <- parseMaccall
-                                     skipSpaces
-                                     string ";"
-                                     skipSpaces
-                                     expr2 <- parseSemicolon
-                                     return (FuncallNode
-                                              (FuncallNode
-                                                (SymNode ";")
-                                                expr1)
-                                              expr2)
+parseSemicolon = try parseSemicolon' <|> parseMaccall
+               where parseSemicolon' = A.pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
+                                       A.<*> parseMaccall
+                                       A.<*> (skipSpaces >> string ";")
+                                       A.<*> (skipSpaces >> parseSemicolon)
 
 parseMaccall :: Parser Node
 parseMaccall = parseMaccall' <?> "one of prefix/infix/suffix"
