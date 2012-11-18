@@ -77,70 +77,10 @@ indent :: String -> String -> String
 indent idt node = foldl (\str x -> concat [str, "\n", idt,  x]) "" (lines node)
 indent2 node = indent "  " node
 
-parseMarkAsIdentifer :: Parser Identifier
-parseMarkAsIdentifer = parseMarkAsIdentifer' <|> parseIdAsIdentifier
-          where parseMarkAsIdentifer' = try $ do
-                a <- beginLetter
-                b <- many containLetter
-                return (a:b)
-                -- ruby -e 'puts [*33..47, *58..64, *91..96, *123..126].map(&:chr).join'
-                where beginLetter = oneOf "!\"#$%&'()*+,-./;<=>?@[\\]^_`{|}~"
-                      containLetter = beginLetter
 
-
-parseIdAsIdentifier :: Parser Identifier
-parseIdAsIdentifier = try parseSymIdAsIdentifier
-                    where parseSymIdAsIdentifier = do
-                                                 a <- beginLetter
-                                                 b <- many containLetter
-                                                 return (a:b)
-                                                 where beginLetter = letter
-                                                       containLetter = letter <|> oneOf "0123456789" <|> oneOf "-"
-
-parseMark :: Parser Node
-parseMark = pure SymNode <*> try parseMarkAsIdentifer
-
-parseId :: Parser Node
-parseId = pure SymNode <*> try parseIdAsIdentifier
-
-parseString :: Parser Node
-parseString = do
-            str <- parseStr
-            return $ foldr (\ch str -> ConsNode ch str) NilNode str
-            where parseChar :: Parser Node
-                  parseChar = liftM CharNode (try (string "\\\"" >> return '"')
-                                             <|> noneOf ['"'])
-                  parseStr = (between (char '"') (char '"') (many parseChar)) <?> "a string"
-
-parseChar :: Parser Node
-parseChar = liftM CharNode (prefix >> anyChar)
-          where prefix = try $ string "$'"
-
-parseNumber :: Parser Node
-parseNumber = parseFloatNum <|> parseIntNumAsFloat <?> "a number"
-
-parseFloatNum = try $ do
-            i <- parseIntNum
-            char '.'
-            ds <- many1 digit
-            return $ NumNode (read $ concat [show i, ".", ds])
-            where digit = oneOf "0123456789"
-
-parseIntNumAsFloat = try $ do
-                   i <- parseIntNum
-                   return $ NumNode (read $ concat [show i, ".", "0"])
-
-parseIntNum :: Parser Integer
-parseIntNum = parseIntNumNonZero <|> parseIntNumZero <?> "a integer"
-parseIntNumZero = try $ do { char '0'; return 0 }
-parseIntNumNonZero = try $ do
-            sign <- char '-' <|> do {return ' '}
-            d <- beginDigit
-            ds <- many digit
-            return $ read $ concat [[sign], [d], ds]
-            where digit = oneOf "0123456789"
-                  beginDigit = oneOf "123456789"
-
+----------------------------------------
+-- Compile Time Statements
+----------------------------------------
 compileTimeExpr :: Parser [MacCxtNode]
 compileTimeExpr = many $ try $ do
                     skipProgram
@@ -241,6 +181,9 @@ parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
                                                           parseIdAsIdentifier)
                                     return (id, params)
 
+----------------------------------------
+-- Runtime Expression
+----------------------------------------
 runTimeExpr :: Parser Node
 runTimeExpr = try (skipSpaces >> semicolon)
 
@@ -329,6 +272,70 @@ prim = parseBracket <|> exclamExpr <|> parseString <|> parseChar <|> parseId <|>
                           parseBracket = bracket "[" "]" <|>
                                        bracket "(" ")" <|>
                                        bracket "{" "}"
+
+parseMarkAsIdentifer :: Parser Identifier
+parseMarkAsIdentifer = parseMarkAsIdentifer' <|> parseIdAsIdentifier
+          where parseMarkAsIdentifer' = try $ do
+                a <- beginLetter
+                b <- many containLetter
+                return (a:b)
+                -- ruby -e 'puts [*33..47, *58..64, *91..96, *123..126].map(&:chr).join'
+                where beginLetter = oneOf "!\"#$%&'()*+,-./;<=>?@[\\]^_`{|}~"
+                      containLetter = beginLetter
+
+
+parseIdAsIdentifier :: Parser Identifier
+parseIdAsIdentifier = try parseSymIdAsIdentifier
+                    where parseSymIdAsIdentifier = do
+                                                 a <- beginLetter
+                                                 b <- many containLetter
+                                                 return (a:b)
+                                                 where beginLetter = letter
+                                                       containLetter = letter <|> oneOf "0123456789" <|> oneOf "-"
+
+parseMark :: Parser Node
+parseMark = pure SymNode <*> try parseMarkAsIdentifer
+
+parseId :: Parser Node
+parseId = pure SymNode <*> try parseIdAsIdentifier
+
+parseString :: Parser Node
+parseString = do
+            str <- parseStr
+            return $ foldr (\ch str -> ConsNode ch str) NilNode str
+            where parseChar :: Parser Node
+                  parseChar = liftM CharNode (try (string "\\\"" >> return '"')
+                                             <|> noneOf ['"'])
+                  parseStr = (between (char '"') (char '"') (many parseChar)) <?> "a string"
+
+parseChar :: Parser Node
+parseChar = liftM CharNode (prefix >> anyChar)
+          where prefix = try $ string "$'"
+
+parseNumber :: Parser Node
+parseNumber = parseFloatNum <|> parseIntNumAsFloat <?> "a number"
+
+parseFloatNum = try $ do
+            i <- parseIntNum
+            char '.'
+            ds <- many1 digit
+            return $ NumNode (read $ concat [show i, ".", ds])
+            where digit = oneOf "0123456789"
+
+parseIntNumAsFloat = try $ do
+                   i <- parseIntNum
+                   return $ NumNode (read $ concat [show i, ".", "0"])
+
+parseIntNum :: Parser Integer
+parseIntNum = parseIntNumNonZero <|> parseIntNumZero <?> "a integer"
+parseIntNumZero = try $ do { char '0'; return 0 }
+parseIntNumNonZero = try $ do
+            sign <- char '-' <|> do {return ' '}
+            d <- beginDigit
+            ds <- many digit
+            return $ read $ concat [[sign], [d], ds]
+            where digit = oneOf "0123456789"
+                  beginDigit = oneOf "123456789"
 
 exclamExpr :: Parser Node
 exclamExpr = try $ string "!" >> ( excIf <|> excLambda <|> excDefine <|>
