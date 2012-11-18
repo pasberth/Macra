@@ -260,7 +260,7 @@ arrow = equalArrow <|> comma <|> prim
 --   identifier
 --   constant
 prim :: Parser Node
-prim = brackets <|> exclamExpr <|> strLit <|> charLit <|> id <|> parseNumber
+prim = brackets <|> exclamExpr <|> strLit <|> charLit <|> id <|> num
      where bracket beg end = try $ do { string beg
                                       ; skipSpaces
                                       ; expr <- semicolon
@@ -288,6 +288,21 @@ prim = brackets <|> exclamExpr <|> strLit <|> charLit <|> id <|> parseNumber
            charLit = liftM CharNode (prefix >> anyChar)
                    where prefix = try $ string "$'"
 
+           num :: Parser Node
+           num = floatNum <|> intNumAsFloat <?> "a number"
+
+           floatNum = try $ do
+                    i <- int
+                    char '.'
+                    ds <- many1 digit
+                    return $ NumNode (read $ concat [show i, ".", ds])
+                    where digit = oneOf "0123456789"
+
+           intNumAsFloat = try $ do
+                         i <- int
+                         return $ NumNode (read $ concat [show i, ".", "0"])
+
+
 mark :: Parser Identifier
 mark = parseMarkAsIdentifer' <|> symbol
      where parseMarkAsIdentifer' = try $ do
@@ -308,30 +323,16 @@ symbol = try parseSymIdAsIdentifier
                                     where beginLetter = letter
                                           containLetter = letter <|> oneOf "0123456789" <|> oneOf "-"
 
-parseNumber :: Parser Node
-parseNumber = parseFloatNum <|> parseIntNumAsFloat <?> "a number"
-
-parseFloatNum = try $ do
-            i <- parseIntNum
-            char '.'
-            ds <- many1 digit
-            return $ NumNode (read $ concat [show i, ".", ds])
-            where digit = oneOf "0123456789"
-
-parseIntNumAsFloat = try $ do
-                   i <- parseIntNum
-                   return $ NumNode (read $ concat [show i, ".", "0"])
-
-parseIntNum :: Parser Integer
-parseIntNum = parseIntNumNonZero <|> parseIntNumZero <?> "a integer"
-parseIntNumZero = try $ do { char '0'; return 0 }
-parseIntNumNonZero = try $ do
-            sign <- char '-' <|> do {return ' '}
-            d <- beginDigit
-            ds <- many digit
-            return $ read $ concat [[sign], [d], ds]
-            where digit = oneOf "0123456789"
-                  beginDigit = oneOf "123456789"
+int :: Parser Integer
+int = nonZero <|> zero <?> "a integer"
+    where zero = try $ do { char '0'; return 0 }
+          nonZero = try $ do
+                  sign <- char '-' <|> do {return ' '}
+                  d <- beginDigit
+                  ds <- many digit
+                  return $ read $ concat [[sign], [d], ds]
+                  where digit = oneOf "0123456789"
+                        beginDigit = oneOf "123456789"
 
 exclamExpr :: Parser Node
 exclamExpr = try $ string "!" >> ( excIf <|> excLambda <|> excDefine <|>
@@ -383,7 +384,7 @@ exclamExpr = try $ string "!" >> ( excIf <|> excLambda <|> excDefine <|>
                   -- nativeはIntのidで指定する
                   excNative :: Parser Node
                   excNative = pure NativeNode
-                              <*> (try $ string "native" >> requireSpaces >> parseIntNum)
+                              <*> (try $ string "native" >> requireSpaces >> int)
 
                   parseExpr :: Parser Node
                   parseExpr = arrow <?> "a expression"
