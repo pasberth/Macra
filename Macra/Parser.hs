@@ -241,11 +241,7 @@ parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
                                     return (id, params)
 
 program :: Parser Node
-program = try (skipSpacesAndCompileTimeExpressions >> parseSemicolon)
-        where skipSpacesAndCompileTimeExpressions = do
-                skipSpaces
-                try (string "#" >> parseMacDef >> skipSpacesAndCompileTimeExpressions)
-                  <|> return ()
+program = try (skipSpaces >> parseSemicolon)
 
 parseExpr :: Parser Node
 parseExpr = parseLambdaSyntax <?> "a expression"
@@ -395,8 +391,7 @@ skipComment = try $ do
                          then return ()
                          else skip begMark
 
-spaces = oneOf " \t\n"
-skipSpaces = skipMany ( (spaces >> return ()) <|>
-                        skipComment) <?> "skipped spaces"
-requireSpaces = eof <|> (skipMany1 ((spaces >> return ()) <|>
-                                     skipComment)) <?> "spaces"
+spaces = oneOf " \t\n" >> return ()
+skipCompileTimeExpr = try (string "#" >> parseMacDef >> return ())
+skipSpaces = skipMany ( spaces <|> skipComment <|> skipCompileTimeExpr) <?> "skipped spaces"
+requireSpaces = eof <|> (skipMany1 (spaces <|> skipComment <|> skipCompileTimeExpr)) <?> "spaces"
