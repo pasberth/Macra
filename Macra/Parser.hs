@@ -260,18 +260,33 @@ arrow = equalArrow <|> comma <|> prim
 --   { semicolon-expression }
 --   ( semicolon-expression )
 prim :: Parser Node
-prim = parseBracket <|> exclamExpr <|> parseString <|> parseChar <|> parseId <|> parseNumber
-                    where bracket beg end = try $ do {
-                                        string beg
-                                        ; skipSpaces
-                                        ; expr <- semicolon
-                                        ; skipSpaces
-                                        ; string end
-                                        ; return (FuncallNode (SymNode beg) expr)
-                                    }
-                          parseBracket = bracket "[" "]" <|>
-                                       bracket "(" ")" <|>
-                                       bracket "{" "}"
+prim = brackets <|> exclamExpr <|> strLit <|> charLit <|> id <|> parseNumber
+     where bracket beg end = try $ do { string beg
+                                      ; skipSpaces
+                                      ; expr <- semicolon
+                                      ; skipSpaces
+                                      ; string end
+                                      ; return (FuncallNode (SymNode beg) expr)
+                                      }
+           brackets = bracket "[" "]" <|>
+                      bracket "(" ")" <|>
+                      bracket "{" "}"
+
+           id :: Parser Node
+           id = pure SymNode <*> try parseIdAsIdentifier
+
+           strLit :: Parser Node
+           strLit = do
+                  str <- str'
+                  return $ foldr (\ch str -> ConsNode ch str) NilNode str
+                  where char' :: Parser Node
+                        char' = liftM CharNode (try (string "\\\"" >> return '"')
+                                             <|> noneOf ['"'])
+                        str' = (between (char '"') (char '"') (many char')) <?> "a string"
+
+           charLit :: Parser Node
+           charLit = liftM CharNode (prefix >> anyChar)
+                   where prefix = try $ string "$'"
 
 parseMarkAsIdentifer :: Parser Identifier
 parseMarkAsIdentifer = parseMarkAsIdentifer' <|> parseIdAsIdentifier
@@ -295,22 +310,6 @@ parseIdAsIdentifier = try parseSymIdAsIdentifier
 
 parseMark :: Parser Node
 parseMark = pure SymNode <*> try parseMarkAsIdentifer
-
-parseId :: Parser Node
-parseId = pure SymNode <*> try parseIdAsIdentifier
-
-parseString :: Parser Node
-parseString = do
-            str <- parseStr
-            return $ foldr (\ch str -> ConsNode ch str) NilNode str
-            where parseChar :: Parser Node
-                  parseChar = liftM CharNode (try (string "\\\"" >> return '"')
-                                             <|> noneOf ['"'])
-                  parseStr = (between (char '"') (char '"') (many parseChar)) <?> "a string"
-
-parseChar :: Parser Node
-parseChar = liftM CharNode (prefix >> anyChar)
-          where prefix = try $ string "$'"
 
 parseNumber :: Parser Node
 parseNumber = parseFloatNum <|> parseIntNumAsFloat <?> "a number"
