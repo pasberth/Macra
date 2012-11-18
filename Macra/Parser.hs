@@ -250,9 +250,9 @@ runTimeExpr = try (skipSpaces >> semicolon)
 --   funcall-expression; semicolon-expression
 --   funcall-expression
 semicolon :: Parser Node
-semicolon = try semicolon' <|> parseMaccall
+semicolon = try semicolon' <|> funcall
           where semicolon' = pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
-                           <*> parseMaccall
+                           <*> funcall
                            <*> (skipSpaces >> string ";")
                            <*> (skipSpaces >> semicolon)
 
@@ -261,8 +261,8 @@ semicolon = try semicolon' <|> parseMaccall
 --   funcall-expression :identifier lambda-expression
 --   funcall-expression @identifier
 --   lambda-expression
-parseMaccall :: Parser Node
-parseMaccall = parseMaccall' <?> "one of prefix/infix/suffix"
+funcall :: Parser Node
+funcall = parseMaccall' <?> "one of prefix/infix/suffix"
              where maccall = infixOp <|> prefixOp
                    prefixOp = try $ do
                             requireSpaces
@@ -303,13 +303,13 @@ parseLambdaSyntax = equalArrow <|> comma <|> parseBracketMaccall
                         equalArrow = try $ pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
                                            <*> parseBracketMaccall
                                            <*> (skipSpaces >> string "=>")
-                                           <*> (skipSpaces >> parseMaccall)
+                                           <*> (skipSpaces >> funcall)
 
                         comma :: Parser Node
                         comma = try $ pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
                                       <*> parseBracketMaccall
                                       <*> (skipSpaces >> string ",")
-                                      <*> (skipSpaces >> parseMaccall)
+                                      <*> (skipSpaces >> funcall)
 
 
 -- bracket-expression:
