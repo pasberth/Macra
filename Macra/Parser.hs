@@ -314,54 +314,56 @@ parseComma = try $ A.pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) 
                    A.<*> (skipSpaces >> parseMaccall)
 
 parseVMInst :: Parser Node
-parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMDefine <|> parseVMFuncall <|> parseVMPrint <|> parseVMCons <|> parseVMCar <|> parseVMCdr <|> parseVMDo <|> parseVMNative
+parseVMInst = try $ string "!" >> (excIf <|> excLambda <|> excDefine <|>
+                                   excFuncall <|> excPrint <|> excCons <|>
+                                   excCar <|> excCdr <|> excDo <|> excNative)
+            where excIf :: Parser Node
+                  excIf = A.pure IfNode
+                          A.<*> (try $ string "if" >> requireSpaces >> parseExpr)
+                          A.<*> (skipSpaces >> parseExpr)
+                          A.<*> (skipSpaces >> parseExpr)
 
-parseVMIf :: Parser Node
-parseVMIf = A.pure IfNode
-            A.<*> (try $ string "!if" >> requireSpaces >> parseExpr)
-            A.<*> (skipSpaces >> parseExpr)
-            A.<*> (skipSpaces >> parseExpr)
+                  excLambda :: Parser Node
+                  excLambda = A.pure LambdaNode
+                              A.<*> (try $ string "lambda" >> requireSpaces >> parseIdAsIdentifier)
+                              A.<*> (skipSpaces >> parseExpr)
 
-parseVMLambda :: Parser Node
-parseVMLambda = A.pure LambdaNode
-                A.<*> (try $ string "!lambda" >> requireSpaces >> parseIdAsIdentifier)
-                A.<*> (skipSpaces >> parseExpr)
+                  excDefine :: Parser Node
+                  excDefine = A.pure DefineNode
+                              A.<*> (try $ string "define" >> requireSpaces >> parseIdAsIdentifier)
+                              A.<*> (skipSpaces >> parseExpr)
 
-parseVMDefine :: Parser Node
-parseVMDefine = A.pure DefineNode
-                A.<*> (try $ string "!define" >> requireSpaces >> parseIdAsIdentifier)
-                A.<*> (skipSpaces >> parseExpr)
+                  excFuncall :: Parser Node
+                  excFuncall = A.pure FuncallNode
+                               A.<*> (try $ string "funcall" >> requireSpaces >> parseExpr)
+                               A.<*> (skipSpaces >> parseExpr)
 
-parseVMFuncall :: Parser Node
-parseVMFuncall = A.pure FuncallNode
-                 A.<*> (try $ string "!funcall" >> requireSpaces >> parseExpr)
-                 A.<*> (skipSpaces >> parseExpr)
+                  excPrint :: Parser Node
+                  excPrint = A.pure PrintNode
+                             A.<*> (try $ string "print" >> requireSpaces >> parseExpr)
 
-parseVMPrint :: Parser Node
-parseVMPrint = A.pure PrintNode
-               A.<*> (try $ string "!print" >> requireSpaces >> parseExpr)
+                  excCons :: Parser Node
+                  excCons = A.pure ConsNode
+                            A.<*> (try $ string "cons" >> requireSpaces >> parseExpr)
+                            A.<*> (requireSpaces >> parseExpr)
 
-parseVMCons :: Parser Node
-parseVMCons = A.pure ConsNode
-              A.<*> (try $ string "!cons" >> requireSpaces >> parseExpr)
-              A.<*> (requireSpaces >> parseExpr)
+                  excCar :: Parser Node
+                  excCar = A.pure CarNode
+                           A.<*> (try $ string "car" >> requireSpaces >> parseExpr)
 
-parseVMCar :: Parser Node
-parseVMCar = A.pure CarNode
-             A.<*> (try $ string "!car" >> requireSpaces >> parseExpr)
+                  excCdr :: Parser Node
+                  excCdr = A.pure CdrNode
+                           A.<*> (try $ string "cdr" >> requireSpaces >> parseExpr)
 
-parseVMCdr :: Parser Node
-parseVMCdr = A.pure CdrNode
-             A.<*> (try $ string "!cdr" >> requireSpaces >> parseExpr)
+                  excDo :: Parser Node
+                  excDo = A.pure DoNode
+                          A.<*> (try $ string "do" >> requireSpaces >> parseExpr)
+                          A.<*> (requireSpaces >> parseExpr)
 
-parseVMDo = A.pure DoNode
-            A.<*> (try $ string "!do" >> requireSpaces >> parseExpr)
-            A.<*> (requireSpaces >> parseExpr)
-
--- nativeはIntのidで指定する
-parseVMNative :: Parser Node
-parseVMNative = A.pure NativeNode
-            A.<*> (try $ string "!native" >> requireSpaces >> parseIntNum)
+                  -- nativeはIntのidで指定する
+                  excNative :: Parser Node
+                  excNative = A.pure NativeNode
+                              A.<*> (try $ string "native" >> requireSpaces >> parseIntNum)
 
 skipComment :: Parser ()
 skipComment = try $ do
