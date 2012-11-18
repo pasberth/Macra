@@ -182,7 +182,12 @@ parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
 -- Runtime Expression
 ----------------------------------------
 runTimeExpr :: Parser Node
-runTimeExpr = try (skipSpaces >> semicolon)
+runTimeExpr = do { skipSpaces
+                 ; expr <- semicolon
+                 ; skipSpaces
+                 ; eof
+                 ; return expr
+                 } <?> "a program containing at least one expression."
 
 -- もっとも優先順位の低い中置関数。
 -- a; b; c は a ; (b ; c) のように右に再帰する。
@@ -190,7 +195,7 @@ runTimeExpr = try (skipSpaces >> semicolon)
 --   funcall-expression; semicolon-expression
 --   funcall-expression
 semicolon :: Parser Node
-semicolon = try semicolon' <|> funcall
+semicolon = try semicolon' <|> funcall <?> "semicolon-expression"
           where semicolon' = pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
                            <*> funcall
                            <*> (skipSpaces >> string ";")
@@ -202,7 +207,7 @@ semicolon = try semicolon' <|> funcall
 --   funcall-expression @identifier
 --   arrow-expression
 funcall :: Parser Node
-funcall = parseMaccall' <?> "one of prefix/infix/suffix"
+funcall = parseMaccall' <?> "funcall-expression"
              where maccall = infixOp <|> prefixOp
                    prefixOp = try $ do
                             requireSpaces
@@ -238,7 +243,7 @@ funcall = parseMaccall' <?> "one of prefix/infix/suffix"
 --   primary-expression , funcall-expression
 --   primary-expression
 arrow :: Parser Node
-arrow = equalArrow <|> comma <|> prim
+arrow = equalArrow <|> comma <|> prim <?> "arrow-expression"
                   where equalArrow :: Parser Node
                         equalArrow = try $ pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
                                            <*> prim
