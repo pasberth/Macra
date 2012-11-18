@@ -246,6 +246,11 @@ runTimeExpr = try (skipSpaces >> parseSemicolon)
 parseExpr :: Parser Node
 parseExpr = parseLambdaSyntax <?> "a expression"
 
+-- もっとも優先順位の低い中置関数。
+-- a; b; c は a ; (b ; c) のように右に再帰する。
+-- semicolon-expression:
+--   funcall-expression; semicolon-expression
+--   funcall-expression
 parseSemicolon :: Parser Node
 parseSemicolon = try parseSemicolon' <|> parseMaccall
                where parseSemicolon' = A.pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
@@ -253,6 +258,11 @@ parseSemicolon = try parseSemicolon' <|> parseMaccall
                                        A.<*> (skipSpaces >> string ";")
                                        A.<*> (skipSpaces >> parseSemicolon)
 
+-- funcall-expression:
+--   funcall-expression lambda-expression
+--   funcall-expression :identifier lambda-expression
+--   funcall-expression @identifier
+--   lambda-expression
 parseMaccall :: Parser Node
 parseMaccall = parseMaccall' <?> "one of prefix/infix/suffix"
              where maccall = infixOp <|> prefixOp
@@ -284,6 +294,30 @@ parseMaccall = parseMaccall' <?> "one of prefix/infix/suffix"
                                        }))
                                  return $ foldl (\expr sfx -> sfx expr) expr1 sfxes
 
+
+-- lambda-expression:
+--   bracket-expression => funcall-expression
+--   bracket-expression , funcall-expression
+--   bracket-expression
+parseLambdaSyntax :: Parser Node
+parseLambdaSyntax = equalArrow <|> comma <|> parseBracketMaccall
+                  where equalArrow :: Parser Node
+                        equalArrow = try $ A.pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
+                                           A.<*> parseBracketMaccall
+                                           A.<*> (skipSpaces >> string "=>")
+                                           A.<*> (skipSpaces >> parseMaccall)
+
+                        comma :: Parser Node
+                        comma = try $ A.pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
+                                      A.<*> parseBracketMaccall
+                                      A.<*> (skipSpaces >> string ",")
+                                      A.<*> (skipSpaces >> parseMaccall)
+
+
+-- bracket-expression:
+--   [ semicolon-expression ]
+--   { semicolon-expression }
+--   ( semicolon-expression )
 parseBracketMaccall :: Parser Node
 parseBracketMaccall = parseBracket <|> parseVMInst <|> parseString <|> parseChar <|> parseId <|> parseNumber
                     where bracket beg end = try $ do {
@@ -297,21 +331,6 @@ parseBracketMaccall = parseBracket <|> parseVMInst <|> parseString <|> parseChar
                           parseBracket = bracket "[" "]" <|>
                                        bracket "(" ")" <|>
                                        bracket "{" "}"
-
-parseLambdaSyntax :: Parser Node
-parseLambdaSyntax = parseEqualArrow <|> parseComma <|> parseBracketMaccall
-
-parseEqualArrow :: Parser Node
-parseEqualArrow = try $ A.pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
-                        A.<*> parseBracketMaccall
-                        A.<*> (skipSpaces >> string "=>")
-                        A.<*> (skipSpaces >> parseMaccall)
-
-parseComma :: Parser Node
-parseComma = try $ A.pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
-                   A.<*> parseBracketMaccall
-                   A.<*> (skipSpaces >> string ",")
-                   A.<*> (skipSpaces >> parseMaccall)
 
 parseVMInst :: Parser Node
 parseVMInst = try $ string "!" >> (excIf <|> excLambda <|> excDefine <|>
