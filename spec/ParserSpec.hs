@@ -27,6 +27,35 @@ spec = do
 
   describe "Macra.Parser" $ do
 
+    describe "Equal Arrow" $ do
+
+      it "x と a を引数とする関数呼び出し" $ do
+        cmpNode "x => a" (f (f (q "=>") (q "x")) (q "a"))
+
+      it "右辺には関数呼び出しの構文が許される" $ do
+        cmpNode "x => f a" (f (f (q "=>") (q "x")) (f (q "f") (q "a")))
+
+      it "関数呼び出しより優先順位が高い" $ do
+        cmpNode "f x => a" (f (q "f") (f (f (q "=>") (q "x")) (q "a")))
+
+      it "関数呼び出しより優先順位が高く、右辺には関数呼び出しの構文が許される" $ do
+        cmpNode "f x => g a" (f (q "f") (f (f (q "=>") (q "x")) (f (q "g") (q "a"))))
+
+    describe "Hyphen Arrow" $ do
+
+      it "x と a を引数とする関数呼び出し" $ do
+        cmpNode "x -> a" (f (f (q "->") (q "x")) (q "a"))
+
+      it "関数呼び出しより優先順位が高い" $ do
+        cmpNode "f x -> a" (f (q "f") (f (f (q "->") (q "x")) (q "a")))
+
+    describe "Comma" $ do
+
+      it "x と a を引数とする関数呼び出し" $ do
+        cmpNode "x , a" (f (f (q ",") (q "x")) (q "a"))
+
+      it "関数呼び出しより優先順位が高い" $ do
+        cmpNode "f x, a" (f (q "f") (f (f (q ",") (q "x")) (q "a")))
 
     describe "Brackets" $ do
 
