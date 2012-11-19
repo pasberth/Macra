@@ -283,7 +283,7 @@ prim = brackets <|> exclamExpr <|> strLit <|> charLit <|> id <|> num
 
            intNumAsFloat = try $ do
                          i <- int
-                         return $ NumNode (read $ concat [show i, ".", "0"])
+                         return $ NumNode $ read $ show i
 
            int :: Parser Integer
            int = nonZero <|> zero <?> "a integer"
