@@ -76,8 +76,29 @@ spec = do
         pending "hspec で ParseError を投げたとき pass するようなテストの書き方がわからない"
 
     describe "String" $ do
+
       it "文字列は文字を cons したものを返す" $ do
         cmpNode "\"hoge\"" (cons (c 'h') (cons (c 'o') (cons (c 'g') (cons (c 'e') nil))))
 
       it "日本語は1文字として扱う" $ do
         cmpNode "\"日本語\"" (cons (c '日') (cons (c '本') (cons (c '語') nil)))
+
+    describe "Identifier" $ do
+
+      it "can contain hyphen" $
+        cmpNode "hoge-fuga" (q "hoge-fuga")
+
+      it "ハイフンから始める事はできない" $
+        pending "hspec で ParseError を投げたとき pass するようなテストの書き方がわからない"
+
+      it "ハイフンで終わる事はできない" $
+        pending "hspec で ParseError を投げたとき pass するようなテストの書き方がわからない"
+
+      it "can contain underscore" $
+        cmpNode "hoge_fuga" (q "hoge_fuga")
+
+      it "アンダースコアで始める事ができる" $
+        cmpNode "_hoge" (q "_hoge")
+
+      it "アンダースコアで終わる事ができる" $
+        cmpNode "hoge_" (q "hoge_")
