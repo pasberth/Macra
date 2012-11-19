@@ -117,13 +117,7 @@ macDef = macDef2 <|> macDef1 <?> "macro defination"
                                  return (cxt:lst)
 
              cxtId :: Parser CxtId
-             cxtId = try parseCxtId'
-                   where parseCxtId' = do
-                                     a <- beginLetter
-                                     b <- many containLetter
-                                     return $ (a:b)
-                                     where beginLetter = letter
-                                           containLetter = letter <|> digit <|> oneOf "-"
+             cxtId = symbol
 
              idAndParams :: Parser (Identifier, MacParams)
              idAndParams = brackets <|> infixMacDef <|> prefixMacDef <|> suffixMacDef
