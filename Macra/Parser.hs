@@ -297,13 +297,20 @@ mark = parseMarkAsIdentifer' <|> symbol
 
 
 symbol :: Parser Identifier
-symbol = try parseSymIdAsIdentifier
-       where parseSymIdAsIdentifier = do
-                                    a <- beginLetter
-                                    b <- many containLetter
-                                    return (a:b)
-                                    where beginLetter = letter
-                                          containLetter = letter <|> oneOf "0123456789" <|> oneOf "-"
+symbol = symbol' <?> "symbol"
+       where symbol'       = try $ do { beg <- beginLetter
+                                      ; end <- symbolEnd
+                                      ; return (beg:end)
+                                      }
+             beginLetter   = letter <|> oneOf "_"             -- シンボルの開始として許される文字。 abc の a
+             containLetter = letter <|> digit <|> oneOf "-_"  -- シンボルに含める文字。 abc の b
+             endLetter     = letter <|> digit <|> oneOf "_"   -- シンボルの終わりに含める文字。 abc の c
+             symbolEnd     = symbolEnd1 <|> return []
+             symbolEnd1    = (try $ do { lett <- containLetter
+                                       ; last <- symbolEnd1
+                                       ; return (lett:last)
+                                       })
+                             <|> try (pure (\lett -> [lett]) <*> endLetter)
 
 exclamExpr :: Parser Node
 exclamExpr = try $ string "!" >> ( excIf <|> excLambda <|> excDefine <|>
