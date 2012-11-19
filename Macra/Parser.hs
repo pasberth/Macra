@@ -24,6 +24,10 @@ data MacCxtNode -- 普通のマクロ定義。
                 -- 関数に対するコンテキストの定義。
                 -- # f :: t -> u
                 | MacDef2MNode Identifier MacSig MacParams
+                -- #!/usr/bin/env macra -opt
+                -- であれば、 "/usr/bin/env" が FilePath 、 "macra -opt" が String となる
+                -- 通常は使用しないだろう、いちおうパースして使用できるようにしておく
+                | Shebang FilePath String
                 deriving (Show, Eq)
 
 type CxtId = String              -- マクロのコンテキストのid
