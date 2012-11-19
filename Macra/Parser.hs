@@ -164,6 +164,9 @@ parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
                                                   sym <- string "=>"
                                                   return sym)
                                          <|> (try $ do
+                                                  sym <- string "->"
+                                                  return sym)
+                                         <|> (try $ do
                                                   sym <- (string ",")
                                                   return sym)
                                          <|> (try $ do
@@ -240,21 +243,20 @@ funcall = parseMaccall' <?> "funcall-expression"
 
 -- arrow-expression:
 --   primary-expression => funcall-expression
+--   primary-expression -> funcall-expression
 --   primary-expression , funcall-expression
 --   primary-expression
 arrow :: Parser Node
-arrow = equalArrow <|> comma <|> prim <?> "arrow-expression"
-                  where equalArrow :: Parser Node
-                        equalArrow = try $ pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
+arrow = equalArrow <|> hyphenArrow <|> comma <|> prim <?> "arrow-expression"
+                  where accept :: String -> Parser Node
+                        accept symbol = try $ pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
                                            <*> prim
-                                           <*> (skipSpaces >> string "=>")
+                                           <*> (skipSpaces >> string symbol)
                                            <*> (skipSpaces >> funcall)
 
-                        comma :: Parser Node
-                        comma = try $ pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
-                                      <*> prim
-                                      <*> (skipSpaces >> string ",")
-                                      <*> (skipSpaces >> funcall)
+                        equalArrow  = accept "=>"
+                        hyphenArrow = accept "->"
+                        comma       = accept ","
 
 
 -- primary-expression:
