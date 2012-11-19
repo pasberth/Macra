@@ -186,25 +186,19 @@ semicolon = try semicolon' <|> funcall <?> "semicolon-expression"
 --   funcall-expression @identifier
 --   arrow-expression
 funcall :: Parser Node
-funcall = parseMaccall' <?> "funcall-expression"
-             where maccall = infixOp <|> prefixOp
-                   prefixOp = skipSpaces >> return FuncallNode
-                   infixOp = try $ pure (\id a -> FuncallNode (FuncallNode (SymNode id) a))
-                                   <*> (skipSpaces >> string ":" >> mark)
-                   suffixOp = try $ pure (\id -> FuncallNode (SymNode id))
-                                    <*> (skipSpaces >> string "@" >> mark)
-                   parseMaccall' = try $ do
-                                 expr1 <- arrow
-                                 sfxes <- many ((try $ do {
-                                       op <- maccall
-                                       ; skipSpaces
-                                       ; expr2 <- arrow
-                                       ; return $ (\node -> op node expr2)
-                                       }) <|> (try $ do {
-                                         op <- suffixOp
-                                         ; return op
-                                       }))
-                                 return $ foldl (\expr sfx -> sfx expr) expr1 sfxes
+funcall = funcall' <?> "funcall-expression"
+        where prefixOp = skipSpaces >> return FuncallNode
+              infixOp = try $ pure (\id a -> FuncallNode (FuncallNode (SymNode id) a))
+                              <*> (skipSpaces >> string ":" >> mark)
+              suffixOp = try $ pure (\id -> FuncallNode (SymNode id))
+                               <*> (skipSpaces >> string "@" >> mark)
+              funcall' = try $ do
+                       expr1 <- arrow
+                       sfxes <- many ((try $ pure (\op expr2 node -> op node expr2)
+                                             <*> (infixOp <|> prefixOp)
+                                             <*> (skipSpaces >> arrow))
+                                  <|> (try suffixOp))
+                       return $ foldl (\expr sfx -> sfx expr) expr1 sfxes
 
 
 -- arrow-expression:
