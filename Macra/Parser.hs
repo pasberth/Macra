@@ -284,7 +284,10 @@ prim = brackets <|> exclamExpr <|> strLit <|> charLit <|> id <|> num
                              where digit = oneOf "0123456789"
                                    beginDigit = oneOf "123456789"
 
-
+-- hoge :<> fuga とかの構文で使える記号の id
+--   使える記号はまだ仕様が曖昧なので
+--   ruby -e 'puts [*33..47, *58..64, *91..96, *123..126].map(&:chr).join'
+-- で出力したものを使えるようにしてる。
 mark :: Parser Identifier
 mark = parseMarkAsIdentifer' <|> symbol
      where parseMarkAsIdentifer' = try $ do
