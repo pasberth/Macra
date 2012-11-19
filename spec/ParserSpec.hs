@@ -4,186 +4,57 @@ import Control.Monad
 import Control.Monad.Trans
 import Test.Hspec
 import Macra.Parser
+import Text.ParserCombinators.Parsec
 
 main :: IO ()
 main = hspec spec
 
-cmpTLNode :: String -> ToplevelNode -> Expectation
-cmpTLNode program node = do
-  case parse "(ParserSpec.hs)" program of
-    Left x -> fail (show x)
-    Right x -> x `shouldBe` [node]
+q = SymNode
+c = CharNode
+n = NumNode
 
 cmpNode :: String -> Node -> Expectation
-cmpNode program node = do
-  case parse "(ParserSpec.hs)" program of
-    Left x -> fail (show x)
-    Right ((EvalCxtTLNode x):xs) -> x `shouldBe` node
+cmpNode program node =
+  case parse runTimeExpr "(ParserSpec.hs)" program of
+    Left x -> fail $ show x
+    Right x -> x `shouldBe` node
 
 spec :: Spec
 spec = do
+
   describe "Macra.Parser" $ do
 
-    describe "#macro context" $ do
-      it "" $ do
-        cmpTLNode (concat [ "#macro\n",
-                            "#context function\n",
-                            "m x = x\n",
-                            "#end\n",
-                            "#end"]) (MacCxtTLNode
-                                       [ (CxtDefMNode
-                                           "function"
-                                           [ (MacDefMCNode
-                                             (SymId "m")
-                                             [(SymId "x")]
-                                             (SymNode (SymId "x")))
-                                           ])
-                                       ])
 
-    describe "Arrow Syntax and Comma Syntax" $ do
+    describe "Number" $ do
+      it "should parse 0" $
+        cmpNode "0" (n 0.0)
 
-      it "優先順位は同じ case 1" $ do
-        cmpNode "x,y,z => a" (MaccallNode
-                               (MaccallNode
-                                 (SymNode (SymId ","))
-                                 (SymNode (SymId "x")))
-                               (MaccallNode
-                                 (MaccallNode
-                                   (SymNode (SymId ","))
-                                   (SymNode (SymId "y")))
-                                 (MaccallNode
-                                   (MaccallNode
-                                     (SymNode (SymId "=>"))
-                                     (SymNode (SymId "z")))
-                                   (SymNode (SymId "a")))))
+      it "should parse 0.0" $
+        cmpNode "0.0" (n 0.0)
 
-      it "優先順位は同じ case 2" $ do
-        cmpNode "x => y, z => a" (MaccallNode
-                               (MaccallNode
-                                 (SymNode (SymId "=>"))
-                                 (SymNode (SymId "x")))
-                               (MaccallNode
-                                 (MaccallNode
-                                   (SymNode (SymId ","))
-                                   (SymNode (SymId "y")))
-                                 (MaccallNode
-                                   (MaccallNode
-                                     (SymNode (SymId "=>"))
-                                     (SymNode (SymId "z")))
-                                   (SymNode (SymId "a")))))
+      it "should parse 0.00" $
+        cmpNode "0.00" (n 0.0)
 
-    describe "Bracket Syntax" $ do
+      it "should parse 1" $
+        cmpNode "1" (n 1)
 
-      it "be separated by ';'" $ do
-        cmpNode "(a; b; c)" (MaccallNode
-                              (MaccallNode
-                                (MaccallNode
-                                  (SymNode (SymId "("))
-                                  (SymNode (SymId "a")))
-                                (SymNode (SymId "b")))
-                              (SymNode (SymId "c")))
+      it "should parse 1.23" $
+        cmpNode "1.23" (n 1.23)
 
-    describe "Define Syntax" $ do
+      it "should parse 12.3" $
+        cmpNode "12.3" (n 12.3)
 
-      it "keyword is '!define'" $ do
-        cmpNode "!define x y" (DefineNode
-                                (SymId "x")
-                                (SymNode (SymId "y")))
+      it "should raise ParseError when parsing to 00" $
+        pending "hspec で ParseError を投げたとき pass するようなテストの書き方がわからない"
 
-    describe "Lambda Syntax" $ do
+      it "should raise ParseError when parsing to 00.0" $
+        pending "hspec で ParseError を投げたとき pass するようなテストの書き方がわからない"
 
-      it "keyword is '!lambda'" $ do
-         cmpNode "!lambda x y" (LambdaNode
-                                 (SymId "x")
-                                 (SymNode (SymId "y")))
+      it "should raise ParseError when parsing to 0..0" $
+        pending "hspec で ParseError を投げたとき pass するようなテストの書き方がわからない"
 
-    describe "If Syntax" $ do
+      it "should raise ParseError when parsing to 0." $
+        pending "hspec で ParseError を投げたとき pass するようなテストの書き方がわからない"
 
-      it "keyword is '!if'" $ do
-         cmpNode "!if cond then" (IfNode
-                                   (SymNode (SymId "cond"))
-                                   (SymNode (SymId "then")))
-
-    describe "Funcall Syntax" $ do
-
-      it "keyword is '!if'" $ do
-        cmpNode "!funcall f x" (FuncallNode
-                                 (SymNode (SymId "f"))
-                                 (SymNode (SymId "x")))
-
-      -- うまい英語に書き換えてくれ
-      it "カリー化のため!funcall f x の f として !funcall g y も許される" $ do
-        cmpNode "!funcall !funcall f x y" (FuncallNode
-                                            (FuncallNode
-                                              (SymNode (SymId "f"))
-                                              (SymNode (SymId "x")))
-                                            (SymNode (SymId "y")))
-
-      it "構文は2引数固定なので、!funcall f xのxとして!funcall g yも許される" $ do
-        cmpNode "!funcall f !funcall g x" (FuncallNode
-                                            (SymNode (SymId "f"))
-                                            (FuncallNode
-                                              (SymNode (SymId "g"))
-                                              (SymNode (SymId "x"))))
-
-    describe "Infix Maccall Syntax" $ do
-
-      it "" $ do
-        cmpNode "then :if cond" (MaccallNode
-                                  (MaccallNode
-                                    (SymNode (SymId "if"))
-                                    (SymNode (SymId "then")))
-                                  (SymNode (SymId "cond")))
-
-      it "中値演算子として:+のような記号も許される" $ do
-
-        cmpNode "x :+ y" (MaccallNode
-                           (MaccallNode
-                             (SymNode (SymId "+"))
-                             (SymNode (SymId "x")))
-                           (SymNode (SymId "y")))
-
-      it "[a-zA-Z]もidとして許されるけど、記号で始まる場合は含めない方がよくない？" $ do
-
-        cmpNode "x :<+>y z" (MaccallNode
-                              (MaccallNode
-                                (MaccallNode
-                                  (SymNode (SymId "<+>"))
-                                  (SymNode (SymId "x")))
-                                 (SymNode (SymId "y")))
-                               (SymNode (SymId "z")))
-
-      it "" $ do
-        cmpNode "map x => y :* z" (MaccallNode
-                                    (SymNode (SymId "map"))
-                                    (MaccallNode
-                                      (MaccallNode
-                                        (SymNode (SymId "=>"))
-                                        (SymNode (SymId "x")))
-                                      (MaccallNode
-                                        (MaccallNode
-                                          (SymNode (SymId "*"))
-                                          (SymNode (SymId "y")))
-                                        (SymNode (SymId "z")))))
-
-      it "" $ do
-        cmpNode "a b @f" (MaccallNode
-                           (SymNode (SymId "f"))
-                           (MaccallNode
-                             (SymNode (SymId "a"))
-                             (SymNode (SymId "b"))))
-
-    describe "Keyword argument" $ do
-      it "" $ do
-        cmpNode "if cond then: thenExpr else: elseExpr" $
-                (MaccallNode
-                  (MaccallNode
-                    (MaccallNode
-                      (SymNode (SymId "if"))
-                      (SymNode (SymId "cond")))
-                    (KwargNode
-                      (SymId "then")
-                      (SymNode (SymId "thenExpr"))))
-                  (KwargNode
-                    (SymId "else")
-                    (SymNode (SymId "elseExpr"))))
+      it "should raise ParseError when parsing to .0" $
+        pending "hspec で ParseError を投げたとき pass するようなテストの書き方がわからない"
