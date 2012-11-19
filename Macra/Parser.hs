@@ -123,9 +123,7 @@ macDef = macDef2 <|> macDef1 <?> "macro defination"
                                      b <- many containLetter
                                      return $ (a:b)
                                      where beginLetter = letter
-                                           containLetter = letter <|>
-                                                           oneOf "0123456789" <|>
-                                                           oneOf "-"
+                                           containLetter = letter <|> digit <|> oneOf "-"
 
              idAndParams :: Parser (Identifier, MacParams)
              idAndParams = brackets <|> infixMacDef <|> prefixMacDef <|> suffixMacDef
@@ -267,7 +265,6 @@ prim = brackets <|> exclamExpr <|> strLit <|> charLit <|> id <|> num
                     char '.'
                     ds <- many1 digit
                     return $ NumNode (read $ concat [show i, ".", ds])
-                    where digit = oneOf "0123456789"
 
            intNumAsFloat = try $ do
                          i <- int
@@ -281,8 +278,7 @@ prim = brackets <|> exclamExpr <|> strLit <|> charLit <|> id <|> num
                              d <- beginDigit
                              ds <- many digit
                              return $ read $ concat [[sign], [d], ds]
-                             where digit = oneOf "0123456789"
-                                   beginDigit = oneOf "123456789"
+                             where beginDigit = oneOf "123456789"
 
 -- hoge :<> fuga とかの構文で使える記号の id
 --   使える記号はまだ仕様が曖昧なので
