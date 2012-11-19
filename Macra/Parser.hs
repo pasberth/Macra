@@ -307,6 +307,17 @@ prim = brackets <|> exclamExpr <|> strLit <|> charLit <|> id <|> num
                          i <- int
                          return $ NumNode (read $ concat [show i, ".", "0"])
 
+           int :: Parser Integer
+           int = nonZero <|> zero <?> "a integer"
+               where zero = try $ do { char '0'; return 0 }
+                     nonZero = try $ do
+                             sign <- char '-' <|> do {return ' '}
+                             d <- beginDigit
+                             ds <- many digit
+                             return $ read $ concat [[sign], [d], ds]
+                             where digit = oneOf "0123456789"
+                                   beginDigit = oneOf "123456789"
+
 
 mark :: Parser Identifier
 mark = parseMarkAsIdentifer' <|> symbol
@@ -327,17 +338,6 @@ symbol = try parseSymIdAsIdentifier
                                     return (a:b)
                                     where beginLetter = letter
                                           containLetter = letter <|> oneOf "0123456789" <|> oneOf "-"
-
-int :: Parser Integer
-int = nonZero <|> zero <?> "a integer"
-    where zero = try $ do { char '0'; return 0 }
-          nonZero = try $ do
-                  sign <- char '-' <|> do {return ' '}
-                  d <- beginDigit
-                  ds <- many digit
-                  return $ read $ concat [[sign], [d], ds]
-                  where digit = oneOf "0123456789"
-                        beginDigit = oneOf "123456789"
 
 exclamExpr :: Parser Node
 exclamExpr = try $ string "!" >> ( excIf <|> excLambda <|> excDefine <|>
@@ -389,7 +389,13 @@ exclamExpr = try $ string "!" >> ( excIf <|> excLambda <|> excDefine <|>
                   -- nativeはIntのidで指定する
                   excNative :: Parser Node
                   excNative = pure NativeNode
-                              <*> (try $ string "native" >> requireSpaces >> int)
+                              <*> (try $ string "native" >> requireSpaces >> nativeId)
+                            where idList = ["1001", "1002"]
+                                  accept id = try $ pure read <*> string id
+                                  nativeId = foldl (\x id -> x <|> accept id)
+                                                   (accept $ head idList)
+                                                   (tail idList) <?> "native id"
+
 
                   parseExpr :: Parser Node
                   parseExpr = arrow <?> "a expression"
