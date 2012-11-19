@@ -207,16 +207,20 @@ funcall = funcall' <?> "funcall-expression"
 --   primary-expression , funcall-expression
 --   primary-expression
 arrow :: Parser Node
-arrow = equalArrow <|> hyphenArrow <|> comma <|> prim <?> "arrow-expression"
-                  where accept :: String -> Parser Node
-                        accept symbol = try $ pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
-                                           <*> prim
-                                           <*> (skipSpaces >> string symbol)
-                                           <*> (skipSpaces >> funcall)
+arrow = arrow' <|> prim <?> "arrow-expression"
+                  where arrow' = try $ pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
+                                       <*> prim
+                                       <*> (skipSpaces >> arrowMark)
+                                       <*> (skipSpaces >> funcall)
 
-                        equalArrow  = accept "=>"
-                        hyphenArrow = accept "->"
-                        comma       = accept ","
+                        arrowMark = foldl (\x mark -> x <|> (try $ string mark))
+                                          (try $ string $ head arrowList)
+                                          (tail arrowList)
+
+                        arrowList = [ "=>"
+                                    , "->"
+                                    , ","
+                                    ]
 
 
 -- primary-expression:
