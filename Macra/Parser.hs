@@ -188,24 +188,16 @@ semicolon = try semicolon' <|> funcall <?> "semicolon-expression"
 funcall :: Parser Node
 funcall = parseMaccall' <?> "funcall-expression"
              where maccall = infixOp <|> prefixOp
-                   prefixOp = try $ do
-                            requireSpaces
-                            return FuncallNode
-                   infixOp = try $ do
-                           skipSpaces
-                           string ":"
-                           id <- pure SymNode <*> try mark
-                           skipSpaces
-                           return (\n m -> FuncallNode (FuncallNode id n) m)
-                   suffixOp = try $ do
-                            skipSpaces
-                            string "@"
-                            id <- pure SymNode <*> try mark
-                            return $ FuncallNode id
+                   prefixOp = skipSpaces >> return FuncallNode
+                   infixOp = try $ pure (\id a -> FuncallNode (FuncallNode (SymNode id) a))
+                                   <*> (skipSpaces >> string ":" >> mark)
+                   suffixOp = try $ pure (\id -> FuncallNode (SymNode id))
+                                    <*> (skipSpaces >> string "@" >> mark)
                    parseMaccall' = try $ do
                                  expr1 <- arrow
                                  sfxes <- many ((try $ do {
                                        op <- maccall
+                                       ; skipSpaces
                                        ; expr2 <- arrow
                                        ; return $ (\node -> op node expr2)
                                        }) <|> (try $ do {
