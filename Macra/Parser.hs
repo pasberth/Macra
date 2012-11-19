@@ -140,46 +140,34 @@ parseMacDef = parseMacDef2 <|> parseMacDef1 <?> "macro defination"
                                return $ MacDef1MNode id sig params (MacroNode defi)
 
 parseMacDefIdAndParams :: Parser (Identifier, MacParams)
-parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
+parseMacDefIdAndParams = brackets <|> infixMacDef <|> prefixMacDef <|> suffixMacDef
                        where brackets = bracket "(" ")" <|>
                                         bracket "[" "]" <|>
                                         bracket "{" "}"
-                             bracket beg end = try $ do
-                                     string beg
-                                     skipSpaces
-                                     param <- symbol
-                                     skipSpaces
-                                     string end
-                                     return (beg, [param])
-                             suffixOp = try $ do
-                                   params <- many1 symbol
-                                   skipSpaces
-                                   id <- string "@" >> mark
-                                   return (id, params)
-                             infixOp = try $ do
-                                   param1 <- symbol
-                                   skipSpaces
-                                   id <- (try $ string ":" >> mark)
-                                         <|> (try $ do
-                                                  sym <- string "=>"
-                                                  return sym)
-                                         <|> (try $ do
-                                                  sym <- string "->"
-                                                  return sym)
-                                         <|> (try $ do
-                                                  sym <- (string ",")
-                                                  return sym)
-                                         <|> (try $ do
-                                                  sym <- (string ";")
-                                                  return sym)
-                                   skipSpaces
-                                   param2 <- symbol
-                                   params <- many (try $ requireSpaces >> symbol)
-                                   return (id, (param1:param2:params))
-                             prefixOp = try $ do
-                                     id <- symbol
-                                     params <- many (try $ requireSpaces >> symbol)
-                                     return (id, params)
+                             bracket beg end = try $ pure (\beg param end -> (beg, [param]))
+                                                     <*> (string beg)
+                                                     <*> (skipSpaces >> symbol)
+                                                     <*> (skipSpaces >> (string end))
+                             infixOpList = [ string ":" >> mark
+                                           , string "=>"
+                                           , string "->"
+                                           , string ","
+                                           , string ";"
+                                           ]
+                             infixOp = foldl (\x y -> x <|> y)
+                                             (head infixOpList)
+                                             (tail infixOpList)
+                             infixMacDef = try $ pure (\param1 id param2 params -> (id, (param1:param2:params)))
+                                                 <*> symbol
+                                                 <*> (skipSpaces >> infixOp)
+                                                 <*> (skipSpaces >> symbol)
+                                                 <*> (many (try $ requireSpaces >> symbol))
+                             prefixMacDef = try $ pure (\id params -> (id, params))
+                                                  <*> symbol
+                                                  <*> many (try $ requireSpaces >> symbol)
+                             suffixMacDef = try $ pure (\params id -> (id, params))
+                                                  <*> many1 symbol
+                                                  <*> (skipSpaces >> string "@" >> mark)
 
 ----------------------------------------
 -- Runtime Expression
