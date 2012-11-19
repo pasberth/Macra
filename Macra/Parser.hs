@@ -264,14 +264,9 @@ prim = brackets <|> exclamExpr <|> strLit <|> charLit <|> id <|> num
 --   ruby -e 'puts [*33..47, *58..64, *91..96, *123..126].map(&:chr).join'
 -- で出力したものを使えるようにしてる。
 mark :: Parser Identifier
-mark = parseMarkAsIdentifer' <|> symbol
-     where parseMarkAsIdentifer' = try $ do
-           a <- beginLetter
-           b <- many containLetter
-           return (a:b)
-           -- ruby -e 'puts [*33..47, *58..64, *91..96, *123..126].map(&:chr).join'
-           where beginLetter = oneOf "!\"#$%&'()*+,-./;<=>?@[\\]^_`{|}~"
-                 containLetter = beginLetter
+mark = mark' <|> symbol
+     where mark' = many1 letter
+           letter = oneOf "!\"#$%&'()*+,-./;<=>?@[\\]^_`{|}~"
 
 
 symbol :: Parser Identifier
