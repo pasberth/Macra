@@ -252,17 +252,12 @@ prim = brackets <|> exclamExpr <|> strLit <|> charLit <|> id <|> num
                    where prefix = try $ string "$'"
 
            num :: Parser Node
-           num = floatNum <|> intNumAsFloat <?> "a number"
+           num = floatNum <?> "a number"
 
            floatNum = try $ do
                     i <- int
-                    char '.'
-                    ds <- many1 digit
+                    ds <- (char '.' >> many1 digit) <|> return "0"
                     return $ NumNode (read $ concat [show i, ".", ds])
-
-           intNumAsFloat = try $ do
-                         i <- int
-                         return $ NumNode $ read $ show i
 
            int :: Parser Integer
            int = nonZero <|> zero <?> "a integer"
