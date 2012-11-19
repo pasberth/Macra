@@ -1,0 +1,70 @@
+
+semicolon-expression:
+  funcall-expression; semicolon-expression
+  funcall-expression
+
+funcall-expression:
+  funcall-expression arrow-expression
+  funcall-expression :identifier arrow-expression
+  funcall-expression @identifier
+  arrow-expression
+
+arrow-expression:
+  primary-expression => funcall-expression
+  primary-expression -> funcall-expression
+  primary-expression , funcall-expression
+  primary-expression
+
+primary-expression:
+  [ semicolon-expression ]
+  { semicolon-expression }
+  ( semicolon-expression )
+  exclam-expression
+  identifier
+  constant
+
+exclam-expression:
+  !if arrow-expression arrow-expression
+  !lambda identifier arrow-expression
+  !define identidier arrow-expression
+  !funcall arrow-expression arrow-expression
+  !print arrow-expression
+  !cons arrow-expression arrow-expression
+  !car arrow-expression
+  !cdr arrow-expression
+  !do arrow-expression arrow-expression
+
+identifier:
+
+  今後変わる可能性あり。とりあえず今の実装
+
+  開始に使える文字 (0-9 は使えない):
+
+    /[a-zA-Z]_/
+
+  含む事のできる文字 (シンボルをハイフンで終了する事はできない): 
+
+    /[a-zA-Z0-9]_-/
+
+  終了に使える文字:
+
+    /[a-zA-Z0-9]_/
+
+たとえばこれは valid:
+
+* hoge-fuga
+* hoge_fuga
+* _hoge
+* hoge_
+* _
+
+これは invalid:
+
+* hoge-
+* -fuga
+* -
+
+
+constant:
+
+  数字 / 文字列
