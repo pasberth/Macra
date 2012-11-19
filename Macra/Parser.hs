@@ -196,9 +196,7 @@ funcall = parseMaccall' <?> "funcall-expression"
                            string ":"
                            id <- pure SymNode <*> try mark
                            skipSpaces
-                           return $ a (FuncallNode id)
-                   a :: (Node -> Node) -> Node -> Node -> Node
-                   a f n m = FuncallNode (f n) m
+                           return (\n m -> FuncallNode (FuncallNode id n) m)
                    suffixOp = try $ do
                             skipSpaces
                             string "@"
