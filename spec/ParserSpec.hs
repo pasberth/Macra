@@ -14,6 +14,7 @@ c = CharNode
 n = NumNode
 nil = NilNode
 cons = ConsNode
+f = FuncallNode
 
 cmpNode :: String -> Node -> Expectation
 cmpNode program node =
@@ -25,6 +26,25 @@ spec :: Spec
 spec = do
 
   describe "Macra.Parser" $ do
+
+
+    describe "Brackets" $ do
+
+      it "should contain at least one expresssion" $
+        pending "hspec で ParseError を投げたとき pass するようなテストの書き方がわからない"
+
+      it "[ 関数の呼び出し" $
+        cmpNode "[a]" (f (q "[") (q "a"))
+
+    describe "Brace" $ do
+
+      it "{ 関数の呼び出し" $
+        cmpNode "{a}" (f (q "{") (q "a"))
+
+    describe "Parenthesis" $ do
+
+      it "( 関数の呼び出し" $
+        cmpNode "(a)" (f (q "(") (q "a"))
 
 
     describe "Number" $ do
