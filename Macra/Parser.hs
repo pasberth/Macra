@@ -208,19 +208,19 @@ funcall = funcall' <?> "funcall-expression"
 --   primary-expression
 arrow :: Parser Node
 arrow = arrow' <|> prim <?> "arrow-expression"
-                  where arrow' = try $ pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
-                                       <*> prim
-                                       <*> (skipSpaces >> arrowMark)
-                                       <*> (skipSpaces >> funcall)
+      where arrow' = try $ pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
+                           <*> prim
+                           <*> (skipSpaces >> arrowMark)
+                           <*> (skipSpaces >> funcall)
 
-                        arrowMark = foldl (\x mark -> x <|> (try $ string mark))
-                                          (try $ string $ head arrowList)
-                                          (tail arrowList)
+            arrowMark = foldl (\x mark -> x <|> (try $ string mark))
+                              (try $ string $ head arrowList)
+                              (tail arrowList)
 
-                        arrowList = [ "=>"
-                                    , "->"
-                                    , ","
-                                    ]
+            arrowList = [ "=>"
+                        , "->"
+                        , ","
+                        ]
 
 
 -- primary-expression:
