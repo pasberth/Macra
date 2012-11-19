@@ -93,39 +93,39 @@ macDef = macDef2 <|> macDef1 <?> "macro defination"
        where macDef2 = try $ pure (\(id, params) sig -> MacDef2MNode id sig params)
                              <*> ( skipSpaces >> parseMacDefIdAndParams)
                              <*> ( requireSpaces >> string "::"
-                                >> requireSpaces >> parseMacSig )
+                                >> requireSpaces >> macSig )
              macDef1 = try $ pure (\(id, params) sig defi end -> MacDef1MNode id sig params (MacroNode defi))
                              <*> ( skipSpaces >> string "["
                                 >> skipSpaces >> parseMacDefIdAndParams )
                              <*> ( requireSpaces >> string ":"
-                                >> requireSpaces >> parseMacSig )
+                                >> requireSpaces >> macSig )
                              <*> ( requireSpaces >> string "="
                                 >> requireSpaces >> semicolon )
                              <*> (skipSpaces >> string "]")
 
-parseMacSig :: Parser MacSig
-parseMacSig = fnType <|> primType <?> "signature"
-             where primType = try $ do
-                            cxtId <- parseCxtId
-                            return [cxtId]
-                   fnType = try $ do
-                          cxtId <- parseCxtId
-                          requireSpaces
-                          string "->"
-                          requireSpaces
-                          lst <- parseMacSig
-                          return (cxtId:lst)
+             macSig :: Parser MacSig
+             macSig = fnType <|> primType <?> "signature"
+                    where primType = try $ do
+                                     cxt <- cxtId
+                                     return [cxt]
+                          fnType = try $ do
+                                 cxt <- cxtId
+                                 requireSpaces
+                                 string "->"
+                                 requireSpaces
+                                 lst <- macSig
+                                 return (cxt:lst)
 
-parseCxtId :: Parser CxtId
-parseCxtId = try parseCxtId'
-           where parseCxtId' = do
-                             a <- beginLetter
-                             b <- many containLetter
-                             return $ (a:b)
-                             where beginLetter = letter
-                                   containLetter = letter <|>
-                                                   oneOf "0123456789" <|>
-                                                   oneOf "-"
+             cxtId :: Parser CxtId
+             cxtId = try parseCxtId'
+                   where parseCxtId' = do
+                                     a <- beginLetter
+                                     b <- many containLetter
+                                     return $ (a:b)
+                                     where beginLetter = letter
+                                           containLetter = letter <|>
+                                                           oneOf "0123456789" <|>
+                                                           oneOf "-"
 
 parseMacDefIdAndParams :: Parser (Identifier, MacParams)
 parseMacDefIdAndParams = brackets <|> infixMacDef <|> prefixMacDef <|> suffixMacDef
