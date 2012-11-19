@@ -252,22 +252,12 @@ prim = brackets <|> exclamExpr <|> strLit <|> charLit <|> id <|> num
                    where prefix = try $ string "$'"
 
            num :: Parser Node
-           num = floatNum <?> "a number"
-
-           floatNum = try $ do
-                    i <- int
-                    ds <- (char '.' >> many1 digit) <|> return "0"
-                    return $ NumNode (read $ concat [show i, ".", ds])
-
-           int :: Parser Integer
-           int = nonZero <|> zero <?> "a integer"
-               where zero = try $ do { char '0'; return 0 }
-                     nonZero = try $ do
-                             sign <- char '-' <|> do {return ' '}
-                             d <- beginDigit
-                             ds <- many digit
-                             return $ read $ concat [[sign], [d], ds]
-                             where beginDigit = oneOf "123456789"
+           num = num' <?> "a number"
+               where num' = try $ do
+                          sign  <- char '-' <|> return ' '
+                          int   <- string "0" <|> many1 digit
+                          float <- (char '.' >> many1 digit) <|> return "0"
+                          return $ NumNode $ read $ concat [[sign], int, ".", float]
 
 -- hoge :<> fuga とかの構文で使える記号の id
 --   使える記号はまだ仕様が曖昧なので
