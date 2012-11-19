@@ -179,7 +179,7 @@ semicolon = try semicolon' <|> funcall <?> "semicolon-expression"
 --   arrow-expression
 funcall :: Parser Node
 funcall = funcall' <?> "funcall-expression"
-        where prefixOp = skipSpaces >> return FuncallNode
+        where prefixOp = requireSpaces >> return FuncallNode
               infixOp = try $ pure (\id a -> FuncallNode (FuncallNode (SymNode id) a))
                               <*> (skipSpaces >> string ":" >> mark)
               suffixOp = try $ pure (\id -> FuncallNode (SymNode id))
