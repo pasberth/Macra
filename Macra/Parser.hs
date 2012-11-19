@@ -85,8 +85,23 @@ compileTimeExpr :: Parser [MacCxtNode]
 compileTimeExpr = many $ try $ do
                     skipProgram
                     string "#"
-                    parseMacDef
+                    macDef
                  where skipProgram = skipMany $ noneOf "#"
+
+macDef :: Parser MacCxtNode
+macDef = macDef2 <|> macDef1 <?> "macro defination"
+       where macDef2 = try $ pure (\(id, params) sig -> MacDef2MNode id sig params)
+                             <*> ( skipSpaces >> parseMacDefIdAndParams)
+                             <*> ( requireSpaces >> string "::"
+                                >> requireSpaces >> parseMacSig )
+             macDef1 = try $ pure (\(id, params) sig defi end -> MacDef1MNode id sig params (MacroNode defi))
+                             <*> ( skipSpaces >> string "["
+                                >> skipSpaces >> parseMacDefIdAndParams )
+                             <*> ( requireSpaces >> string ":"
+                                >> requireSpaces >> parseMacSig )
+                             <*> ( requireSpaces >> string "="
+                                >> requireSpaces >> semicolon )
+                             <*> (skipSpaces >> string "]")
 
 parseMacSig :: Parser MacSig
 parseMacSig = fnType <|> primType <?> "signature"
@@ -111,33 +126,6 @@ parseCxtId = try parseCxtId'
                                    containLetter = letter <|>
                                                    oneOf "0123456789" <|>
                                                    oneOf "-"
-
-parseMacDef :: Parser MacCxtNode
-parseMacDef = parseMacDef2 <|> parseMacDef1 <?> "macro defination"
-            where parseMacDef2 = try $ do
-                               skipSpaces
-                               (id, params) <- parseMacDefIdAndParams
-                               requireSpaces
-                               string "::"
-                               requireSpaces
-                               sig <- parseMacSig
-                               return $ MacDef2MNode id sig params
-                  parseMacDef1 = try $ do
-                               skipSpaces
-                               string "["
-                               skipSpaces
-                               (id, params) <- parseMacDefIdAndParams
-                               requireSpaces
-                               string ":"
-                               requireSpaces
-                               sig <- parseMacSig
-                               requireSpaces
-                               string "="
-                               requireSpaces
-                               defi <- semicolon
-                               skipSpaces
-                               string "]"
-                               return $ MacDef1MNode id sig params (MacroNode defi)
 
 parseMacDefIdAndParams :: Parser (Identifier, MacParams)
 parseMacDefIdAndParams = brackets <|> infixMacDef <|> prefixMacDef <|> suffixMacDef
@@ -405,6 +393,6 @@ skipComment = try $ do
                          else skip begMark
 
 spaces = oneOf " \t\n" >> return ()
-skipCompileTimeExpr = try (string "#" >> parseMacDef >> return ())
+skipCompileTimeExpr = try (string "#" >> macDef >> return ())
 skipSpaces = skipMany ( spaces <|> skipComment <|> skipCompileTimeExpr) <?> "skipped spaces"
 requireSpaces = eof <|> (skipMany1 (spaces <|> skipComment <|> skipCompileTimeExpr)) <?> "spaces"
