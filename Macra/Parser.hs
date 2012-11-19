@@ -91,12 +91,12 @@ compileTimeExpr = many $ try $ do
 macDef :: Parser MacCxtNode
 macDef = macDef2 <|> macDef1 <?> "macro defination"
        where macDef2 = try $ pure (\(id, params) sig -> MacDef2MNode id sig params)
-                             <*> ( skipSpaces >> parseMacDefIdAndParams)
+                             <*> ( skipSpaces >> idAndParams)
                              <*> ( requireSpaces >> string "::"
                                 >> requireSpaces >> macSig )
              macDef1 = try $ pure (\(id, params) sig defi end -> MacDef1MNode id sig params (MacroNode defi))
                              <*> ( skipSpaces >> string "["
-                                >> skipSpaces >> parseMacDefIdAndParams )
+                                >> skipSpaces >> idAndParams )
                              <*> ( requireSpaces >> string ":"
                                 >> requireSpaces >> macSig )
                              <*> ( requireSpaces >> string "="
@@ -127,35 +127,35 @@ macDef = macDef2 <|> macDef1 <?> "macro defination"
                                                            oneOf "0123456789" <|>
                                                            oneOf "-"
 
-parseMacDefIdAndParams :: Parser (Identifier, MacParams)
-parseMacDefIdAndParams = brackets <|> infixMacDef <|> prefixMacDef <|> suffixMacDef
-                       where brackets = bracket "(" ")" <|>
-                                        bracket "[" "]" <|>
-                                        bracket "{" "}"
-                             bracket beg end = try $ pure (\beg param end -> (beg, [param]))
-                                                     <*> (string beg)
-                                                     <*> (skipSpaces >> symbol)
-                                                     <*> (skipSpaces >> (string end))
-                             infixOpList = [ string ":" >> mark
-                                           , string "=>"
-                                           , string "->"
-                                           , string ","
-                                           , string ";"
-                                           ]
-                             infixOp = foldl (\x y -> x <|> y)
-                                             (head infixOpList)
-                                             (tail infixOpList)
-                             infixMacDef = try $ pure (\param1 id param2 params -> (id, (param1:param2:params)))
-                                                 <*> symbol
-                                                 <*> (skipSpaces >> infixOp)
-                                                 <*> (skipSpaces >> symbol)
-                                                 <*> (many (try $ requireSpaces >> symbol))
-                             prefixMacDef = try $ pure (\id params -> (id, params))
-                                                  <*> symbol
-                                                  <*> many (try $ requireSpaces >> symbol)
-                             suffixMacDef = try $ pure (\params id -> (id, params))
-                                                  <*> many1 symbol
-                                                  <*> (skipSpaces >> string "@" >> mark)
+             idAndParams :: Parser (Identifier, MacParams)
+             idAndParams = brackets <|> infixMacDef <|> prefixMacDef <|> suffixMacDef
+                         where brackets = bracket "(" ")" <|>
+                                          bracket "[" "]" <|>
+                                          bracket "{" "}"
+                               bracket beg end = try $ pure (\beg param end -> (beg, [param]))
+                                                       <*> (string beg)
+                                                       <*> (skipSpaces >> symbol)
+                                                       <*> (skipSpaces >> (string end))
+                               infixOpList = [ string ":" >> mark
+                                             , string "=>"
+                                             , string "->"
+                                             , string ","
+                                             , string ";"
+                                             ]
+                               infixOp = foldl (\x y -> x <|> y)
+                                               (head infixOpList)
+                                               (tail infixOpList)
+                               infixMacDef = try $ pure (\param1 id param2 params -> (id, (param1:param2:params)))
+                                                   <*> symbol
+                                                   <*> (skipSpaces >> infixOp)
+                                                   <*> (skipSpaces >> symbol)
+                                                   <*> (many (try $ requireSpaces >> symbol))
+                               prefixMacDef = try $ pure (\id params -> (id, params))
+                                                    <*> symbol
+                                                    <*> many (try $ requireSpaces >> symbol)
+                               suffixMacDef = try $ pure (\params id -> (id, params))
+                                                    <*> many1 symbol
+                                                    <*> (skipSpaces >> string "@" >> mark)
 
 ----------------------------------------
 -- Runtime Expression
