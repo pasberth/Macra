@@ -1,4 +1,4 @@
-#[ expr :if cond : toplevel -> toplevel -> toplevel
+#[ expr :if cond : macra -> macra -> macra
                  = !if cond expr nil ]
 
 !print "1" :if 1
