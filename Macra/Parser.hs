@@ -28,6 +28,14 @@ data MacCxtNode -- 普通のマクロ定義。
                 -- であれば、 "/usr/bin/env" が FilePath 、 "macra -opt" が String となる
                 -- 通常は使用しないだろう、いちおうパースして使用できるようにしておく
                 | Shebang FilePath String
+                -- # include prelude.macra
+                -- `#' と include の間に空白はあってもなくてもいい。
+                -- 拡張子は省略不可能。
+                -- もし https://github.com/pasberth/Macra/issues/40 で拡張子に意味を持たせるなら、
+                -- .macra だけ省略できるというのは不自然
+                | Include FilePath
+                -- # require prelude.macra
+                | Require FilePath
                 deriving (Show, Eq)
 
 type CxtId = String              -- マクロのコンテキストのid

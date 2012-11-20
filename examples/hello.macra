@@ -1,2 +1,7 @@
----- The hello world program. ----
-!print "hello world"
+----------------------------
+  The hello world program.
+----------------------------
+
+#include prelude.macra
+
+puts "hello world"
