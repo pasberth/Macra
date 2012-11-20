@@ -115,20 +115,12 @@ macDef = macDef2 <|> macDef1 <?> "macro defination"
                              <*> (skipSpaces >> string "]")
 
              macSig :: Parser MacSig
-             macSig = fnType <|> primType <?> "signature"
-                    where primType = try $ do
-                                     cxt <- cxtId
-                                     return [cxt]
-                          fnType = try $ do
-                                 cxt <- cxtId
-                                 requireSpaces
-                                 string "->"
-                                 requireSpaces
-                                 lst <- macSig
-                                 return (cxt:lst)
-
-             cxtId :: Parser CxtId
-             cxtId = symbol
+             macSig = macSig' <?> "signature"
+                    where macSig' = try $ do
+                                  cxt <- symbol
+                                  (try $ pure (\list -> cxt:list)
+                                         <*> (requireSpaces >> string "->" >> requireSpaces >> macSig'))
+                                    <|> return [cxt]
 
              idAndParams :: Parser (Identifier, MacParams)
              idAndParams = brackets <|> infixMacDef <|> prefixMacDef <|> suffixMacDef
