@@ -226,17 +226,27 @@ arrow = arrow' <|> prim <?> "arrow-expression"
 --   identifier
 --   constant
 prim :: Parser Node
-prim = brackets <|> exclamExpr <|> strLit <|> charLit <|> id <|> num
-     where bracket beg end = try $ do { string beg
-                                      ; skipSpaces
-                                      ; expr <- semicolon
-                                      ; skipSpaces
-                                      ; string end
-                                      ; return (FuncallNode (SymNode beg) expr)
-                                      }
-           brackets = bracket "[" "]" <|>
-                      bracket "(" ")" <|>
-                      bracket "{" "}"
+prim = bracket <|> exclamExpr <|> strLit <|> charLit <|> id <|> num
+     where bracket = try $ do { (beg, end) <- bracketBeg
+                              ; skipSpaces
+                              ; expr <- semicolon
+                              ; skipSpaces
+                              ; string end
+                              ; return (FuncallNode (SymNode beg) expr)
+                              }
+           brackets = [ ("[", "]")
+                      , ("(", ")")
+                      , ("{", "}")
+                      ]
+           bracketBeg :: Parser (String, String)
+           bracketBeg = bracketBeg' brackets
+
+           bracketBeg' :: [(String, String)] -> Parser (String, String)
+           -- satisfy (const False) は常に失敗するので、 ("", "") が返る
+           -- ことはあり得ない
+           bracketBeg' [] = satisfy (const False) >> return ("", "")
+           bracketBeg' ((beg, end):brackets) =
+             (string beg >> return (beg, end)) <|> bracketBeg' brackets
 
            id :: Parser Node
            id = pure SymNode <*> try symbol
