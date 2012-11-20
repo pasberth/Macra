@@ -2,8 +2,7 @@ module Macra.Compiler (MacroMap,
                        compile,
                        macroDefine,
                        macroExpand,
-                       emptyMacroMap,
-                       toplevelContext) where
+                       emptyMacroMap) where
 
 import qualified Data.Map as M
 import qualified Control.Monad.State as S
@@ -40,9 +39,6 @@ data ExpandError = ExpandError
                  | ExpandArgumentError Macro
                  deriving (Eq, Show)
 
-toplevelContext :: P.CxtId
-toplevelContext = "toplevel"
-
 emptyMacroMap :: MacroMap
 emptyMacroMap = M.fromList []
 
@@ -51,8 +47,8 @@ macroDefine (x:xs) = macroDefineMacCxtNode (macroDefine xs) x
 macroDefine [] = emptyMacroMap
 
 macroDefineMacCxtNode :: MacroMap -> MacCxtNode -> MacroMap
-macroDefineMacCxtNode mm (MacDef1MNode id [] params node) =
-  M.insert (toplevelContext, id) ([], params, node) mm
+-- macroDefineMacCxtNode toplevelContext mm (MacDef1MNode id [] params node) =
+--   M.insert (toplevelContext, id) ([], params, node) mm
 macroDefineMacCxtNode mm (MacDef1MNode id sig params node) =
   M.insert ((last sig), id) ((init sig), params, node) mm
 macroDefineMacCxtNode mm (MacDef2MNode id sig params) =
@@ -61,28 +57,28 @@ macroDefineMacCxtNode mm (MacDef2MNode id sig params) =
                             , (MacroNode (SymNode id))) mm
 macroDefineMacCxtNode mm (Shebang _ _) = mm
 
-macroExpand :: MacroMap -> P.CxtId -> Node -> Either ExpandError Node
-macroExpand mm cxt node =
-  case macroExpandCurry mm cxt node of
+macroExpand :: P.CxtId -> MacroMap -> P.CxtId -> Node -> Either ExpandError Node
+macroExpand toplevelContext mm cxt node =
+  case macroExpandCurry toplevelContext mm cxt node of
     Right ([], [], node) -> Right node
     Right macro -> Left $ ExpandArgumentError macro
     Left err -> Left err
 
-macroExpandCurry :: MacroMap -> P.CxtId -> Node -> Either ExpandError Macro
+macroExpandCurry :: P.CxtId -> MacroMap -> P.CxtId -> Node -> Either ExpandError Macro
 
-macroExpandCurry mm _ node@(MacroNode _) = Right ([], [], node)
+macroExpandCurry _ _ _ node@(MacroNode _) = Right ([], [], node)
 
 -- シンボルだった場合、 CxtId に関連付けられた
 -- マクロを、 (MacSig, MacParams, Node) の形式で返す。
 -- macroExpandCurry を呼んだ側で、 MacSig と MacParams 従って Node を 置換する。
-macroExpandCurry mm cxtId node@(SymNode macroId) =
+macroExpandCurry _ mm cxtId node@(SymNode macroId) =
   case M.lookup (cxtId, macroId) mm of
     Just macro -> Right macro
     Nothing -> Right ([], [], node)
 
-macroExpandCurry mm cxtId node@(FuncallNode a b) =
+macroExpandCurry toplevelContext mm cxtId node@(FuncallNode a b) =
   -- macroExpandCurry でカリー化されたマクロを得る
-  case macroExpandCurry mm cxtId a of
+  case macroExpandCurry toplevelContext mm cxtId a of
     Left err -> Left err
     -- TODO: Right macro@([], param:params, node) -> Left $ ExpandArgumentError macro
     -- for example, when
@@ -91,12 +87,12 @@ macroExpandCurry mm cxtId node@(FuncallNode a b) =
     -- もし aが すべての引数が適用済みのマクロであれば、
     -- b はそのまま a の関数の引数とする。
     Right ([], [], fn) ->
-      pure (\b -> ([], [], FuncallNode fn b)) <*> macroExpand mm toplevelContext b
+      pure (\b -> ([], [], FuncallNode fn b)) <*> macroExpand toplevelContext mm toplevelContext b
     -- もし aがすべての引数が適用済みであるが、
     -- コンテキストが余っているマクロであれば、
     -- b は関数の引数にしつつコンテキストは変える。
     Right (cxt:sig, [], fn) ->
-      pure (\b -> (sig, [], FuncallNode fn b)) <*> macroExpand mm cxt b
+      pure (\b -> (sig, [], FuncallNode fn b)) <*> macroExpand toplevelContext mm cxt b
 
     -- 再帰的に置換。
     --
@@ -112,16 +108,16 @@ macroExpandCurry mm cxtId node@(FuncallNode a b) =
     -- echo "hello" はまず puts "hello" に置換される。そのあと
     -- puts "hello" を同じコンテキストでマクロ展開する。
     Right (cxt:[], param:[], (MacroNode macroNode)) ->
-      case pure (macroReplace param macroNode) <*> (macroExpand mm cxt b) of
+      case pure (macroReplace param macroNode) <*> (macroExpand toplevelContext mm cxt b) of
         Right r -> case r of
-                     Right node -> pure (\x -> x) <*> macroExpandCurry mm cxtId node
+                     Right node -> pure (\x -> x) <*> macroExpandCurry toplevelContext mm cxtId node
                      Left err -> Left err
         Left err -> Left err
 
     -- もし a が引数が適用されていないマクロであれば、
     -- a に含まれるparam をすべて b に置換する
     Right (cxt:sig, param:params, (MacroNode macroNode)) ->
-      case (macroExpand mm cxt b) of
+      case (macroExpand toplevelContext mm cxt b) of
         Right b ->
           case (macroReplace param
                              macroNode
@@ -129,37 +125,37 @@ macroExpandCurry mm cxtId node@(FuncallNode a b) =
             Right node -> Right (sig, params, (MacroNode node))
             Left err -> Left err
         Left err -> Left err
-macroExpandCurry mm _ node = pure (\node -> ([], [], node)) <*> macroExpandRecur mm node
+macroExpandCurry toplevelContext mm _ node = pure (\node -> ([], [], node)) <*> macroExpandRecur toplevelContext mm node
 
 -- MacroExpandRecur はたとえば
 --   !cons a b
 -- の a b もマクロ展開する。この a b は常に toplevel 。
-macroExpandRecur :: MacroMap -> Node -> Either ExpandError Node
-macroExpandRecur mm node@NilNode      = Right node
-macroExpandRecur mm node@(CharNode _) = Right node
-macroExpandRecur mm node@(NumNode _)  = Right node
-macroExpandRecur mm node@(NativeNode _) = Right node
-macroExpandRecur mm node@(PrintNode expr) =
-  pure PrintNode <*> macroExpand mm toplevelContext expr
-macroExpandRecur mm (ConsNode a b) =
-  pure ConsNode <*> (macroExpand mm toplevelContext a)
-                <*> (macroExpand mm toplevelContext b)
-macroExpandRecur mm (CarNode a) =
-  pure CarNode <*> (macroExpand mm toplevelContext a)
-macroExpandRecur mm (CdrNode a) =
-  pure CdrNode <*> (macroExpand mm toplevelContext a)
-macroExpandRecur mm (IfNode condExp thenExp elseExp) =
-  pure IfNode <*> macroExpand mm toplevelContext condExp
-              <*> macroExpand mm toplevelContext thenExp
-              <*> macroExpand mm toplevelContext elseExp
-macroExpandRecur mm (DoNode a b) =
-  pure DoNode <*> (macroExpand mm toplevelContext a)
-              <*> (macroExpand mm toplevelContext b)
-macroExpandRecur mm (LambdaNode param body) =
-  pure (LambdaNode param) <*> macroExpand mm toplevelContext body
+macroExpandRecur :: P.CxtId -> MacroMap -> Node -> Either ExpandError Node
+macroExpandRecur _ _ node@NilNode      = Right node
+macroExpandRecur _ _ node@(CharNode _) = Right node
+macroExpandRecur _ _ node@(NumNode _)  = Right node
+macroExpandRecur _ _ node@(NativeNode _) = Right node
+macroExpandRecur toplevelContext mm node@(PrintNode expr) =
+  pure PrintNode <*> macroExpand toplevelContext mm toplevelContext expr
+macroExpandRecur toplevelContext mm (ConsNode a b) =
+  pure ConsNode <*> (macroExpand toplevelContext mm toplevelContext a)
+                <*> (macroExpand toplevelContext mm toplevelContext b)
+macroExpandRecur toplevelContext mm (CarNode a) =
+  pure CarNode <*> (macroExpand toplevelContext mm toplevelContext a)
+macroExpandRecur toplevelContext mm (CdrNode a) =
+  pure CdrNode <*> (macroExpand toplevelContext mm toplevelContext a)
+macroExpandRecur toplevelContext mm (IfNode condExp thenExp elseExp) =
+  pure IfNode <*> macroExpand toplevelContext mm toplevelContext condExp
+              <*> macroExpand toplevelContext mm toplevelContext thenExp
+              <*> macroExpand toplevelContext mm toplevelContext elseExp
+macroExpandRecur toplevelContext mm (DoNode a b) =
+  pure DoNode <*> (macroExpand toplevelContext mm toplevelContext a)
+              <*> (macroExpand toplevelContext mm toplevelContext b)
+macroExpandRecur toplevelContext mm (LambdaNode param body) =
+  pure (LambdaNode param) <*> macroExpand toplevelContext  mm toplevelContext body
 
-macroExpandRecur mm (DefineNode id expr) =
-  pure (DefineNode id) <*> macroExpand mm toplevelContext expr
+macroExpandRecur toplevelContext mm (DefineNode id expr) =
+  pure (DefineNode id) <*> macroExpand toplevelContext mm toplevelContext expr
 
 macroReplace :: P.Identifier -> Node -> Node -> Either ExpandError Node
 macroReplace param NilNode arg = Right NilNode
@@ -217,9 +213,9 @@ macroReplaceSym param var arg
                 -- これは単に x を返す。
                 | otherwise = Right var
 
-compile :: MacroMap -> Node -> Either CompileError Inst 
-compile mm x =
-        case  (macroExpand mm toplevelContext x) of
+compile :: P.CxtId -> MacroMap -> Node -> Either CompileError Inst 
+compile toplevelContext mm x =
+        case  (macroExpand toplevelContext mm toplevelContext x) of
           Right node -> Right (compileNode node HaltInst)
           Left err -> Left (CompileExpandError err)
 
