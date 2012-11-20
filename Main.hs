@@ -35,15 +35,20 @@ main = do
              case parse runTimeExpr fname str of
                Left x -> print x
                Right expr -> print $ compile toplevel (macroDefine x) expr
-    path:xs -> do
-            str <- readFile path
-            let toplevel = tail . takeExtension $ path
-            case parse compileTimeExpr path str of
-              Left x -> print x
-              Right x ->
-                case parse runTimeExpr path str of
-                  Left x -> print x
-                  Right expr ->
-                    case compile toplevel (macroDefine x) expr of
-                      Right inst -> vm inst
-                      Left err -> print err
+    path:xs -> execFile path
+
+
+execFile path = do
+  str <- readFile path
+  let toplevel = tail . takeExtension $ path
+      parseCompileTimeExpr = case parse compileTimeExpr path str of
+                                    Left x -> print x
+                                    Right cnode -> parseRunTimeExpr cnode
+      parseRunTimeExpr cnode = case parse runTimeExpr path str of
+                                      Left x -> print x
+                                      Right node -> compileNode cnode node
+      compileNode cnode node = case compile toplevel (macroDefine cnode) node of
+                                  Right inst -> execInst inst
+                                  Left err -> print err
+      execInst inst = vm inst
+  parseCompileTimeExpr
