@@ -89,8 +89,13 @@ compileTimeExpr :: Parser [MacCxtNode]
 compileTimeExpr = many $ try $ do
                     skipProgram
                     string "#"
-                    macDef
+                    macDef <|> shebang
                  where skipProgram = skipMany $ noneOf "#"
+
+shebang :: Parser MacCxtNode
+shebang = try $ pure Shebang
+                <*> ( char '!' >> skipMany (oneOf " \t") >> many1 (noneOf " \t") )
+                <*> ( skipMany (oneOf " \t") >> many (noneOf "\n"))
 
 macDef :: Parser MacCxtNode
 macDef = macDef2 <|> macDef1 <?> "macro defination"
@@ -365,6 +370,6 @@ skipComment = try $ do
                          else skip begMark
 
 spaces = oneOf " \t\n" >> return ()
-skipCompileTimeExpr = try (string "#" >> macDef >> return ())
+skipCompileTimeExpr = try (string "#" >> (macDef <|> shebang) >> return ())
 skipSpaces = skipMany ( spaces <|> skipComment <|> skipCompileTimeExpr) <?> "skipped spaces"
 requireSpaces = eof <|> (skipMany1 (spaces <|> skipComment <|> skipCompileTimeExpr)) <?> "spaces"
