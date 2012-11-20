@@ -1,4 +1,2 @@
---------
-The hello world program.
---------
+---- The hello world program. ----
 !print "hello world"
