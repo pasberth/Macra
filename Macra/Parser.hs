@@ -100,12 +100,18 @@ compileTimeExpr = many $ try $ do
                     compileTimeExprNonSharp
                  where skipProgram = skipMany $ noneOf "#"
 
-compileTimeExprNonSharp = macDef <|> shebang
+compileTimeExprNonSharp = macDef <|> include <|> require <|> shebang
 
 shebang :: Parser MacCxtNode
 shebang = try $ pure Shebang
-                <*> ( char '!' >> skipMany (oneOf " \t") >> many1 (noneOf " \t") )
+                <*> ( char '!' >> skipMany (oneOf " \t") >> many1 (noneOf " \t\n") )
                 <*> ( skipMany (oneOf " \t") >> many (noneOf "\n"))
+
+include :: Parser MacCxtNode
+include = try $ pure Include <*> ( skipSpaces >> string "include" >> skipSpaces >> many1 (noneOf " \t\n"))
+
+require :: Parser MacCxtNode
+require = try $ pure Require <*> ( skipSpaces >> string "require" >> skipSpaces >> many1 (noneOf " \t\n"))
 
 macDef :: Parser MacCxtNode
 macDef = macDef2 <|> macDef1 <?> "macro defination"
