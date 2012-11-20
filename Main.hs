@@ -12,7 +12,12 @@ main = do
   case args of
     "--nodes":fname:xs -> do
       str <- readFile fname
+      putStrLn "runTimeExpr:"
       case parse runTimeExpr fname str of
+           Left x -> print x
+           Right x -> print x
+      putStrLn "compileTimeExpr:"
+      case parse compileTimeExpr fname str of
            Left x -> print x
            Right x -> print x
     "--macro":fname:xs -> do
