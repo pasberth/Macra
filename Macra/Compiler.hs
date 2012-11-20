@@ -59,6 +59,7 @@ macroDefineMacCxtNode mm (MacDef2MNode id sig params) =
   M.insert ((last sig), id) ( (init sig)
                             , []
                             , (MacroNode (SymNode id))) mm
+macroDefineMacCxtNode mm (Shebang _ _) = mm
 
 macroExpand :: MacroMap -> P.CxtId -> Node -> Either ExpandError Node
 macroExpand mm cxt node =
