@@ -48,16 +48,6 @@ data Node = SymNode Identifier
           | CdrNode Node
           | DoNode Node Node
           | NativeNode Integer
-          -- macroExpand で展開済みのマクロを展開するのを防ぐノード
-          -- macroExpand の実装では、
-          --   #[ m a x : t -> t -> t = a ]
-          --   m x w
-          -- のように書くと、
-          --   まず `a' が x に置換され、
-          -- そのあと置換後の `x' が `w' に置換される。
-          -- TODO: これは設計が汚いか？ 
-          --       MacroNode を消してmacroExpandのほうでなんとかすべき。
-          | MacroNode Node
           deriving (Eq)
 
 instance Show Node where
@@ -69,7 +59,6 @@ instance Show Node where
   show (LambdaNode a b) = concat ["!lambda", (indent2 $ show a), (indent2 $ show b)]
   show (DefineNode a b) = concat ["!define", (indent2 $ show a), (indent2 $ show b)]
   show (FuncallNode a b) = concat ["!funcall", (indent2 $ show a), (indent2 $ show b)]
-  show (MacroNode a) = concat ["#{", (indent2 $ show a ++ "\n}")]
   show (PrintNode a) = concat ["!print", (indent2 $ show a)]
   show (ConsNode a b) = concat ["!cons", (indent2 $ show a), (indent2 $ show b)]
   show (CarNode a) = concat ["!car", show a]
@@ -105,7 +94,7 @@ macDef = macDef2 <|> macDef1 <?> "macro defination"
                              <*> ( skipSpaces >> idAndParams)
                              <*> ( requireSpaces >> string "::"
                                 >> requireSpaces >> macSig )
-             macDef1 = try $ pure (\(id, params) sig defi end -> MacDef1MNode id sig params (MacroNode defi))
+             macDef1 = try $ pure (\(id, params) sig defi end -> MacDef1MNode id sig params defi)
                              <*> ( skipSpaces >> string "["
                                 >> skipSpaces >> idAndParams )
                              <*> ( requireSpaces >> string ":"
