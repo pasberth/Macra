@@ -13,10 +13,7 @@ Macra では [] もマクロなので
 に置換されるように定義できます。
 ------------------------------
 
-#[ [a] : list -> toplevel
-       = a ]
-
-#[ a, b : toplevel -> list -> list
-        = !cons a b ]
+#[ [a]  : list -> macra         = a ]
+#[ a, b : macra -> list -> list = !cons a b ]
 
 !print [1, 2, 3, nil]
