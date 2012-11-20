@@ -15,8 +15,7 @@
 
 ---------------------------------------------
 
-#[ a; b : toplevel -> toplevel -> toplevel
-        = !do a b ]
+#[ a; b : macra -> macra -> macra = !do a b ]
 
 !print "hoge";
 !print "fuga";
