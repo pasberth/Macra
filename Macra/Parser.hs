@@ -284,10 +284,7 @@ mark = mark' <|> symbol
 
 symbol :: Parser Identifier
 symbol = symbol' <?> "symbol"
-       where symbol'       = try $ do { beg <- beginLetter
-                                      ; end <- symbolEnd
-                                      ; return (beg:end)
-                                      }
+       where symbol'       = try (pure (\beg end -> beg:end)) <*> beginLetter <*> symbolEnd
              beginLetter   = letter <|> oneOf "_"             -- シンボルの開始として許される文字。 abc の a
              containLetter = letter <|> digit <|> oneOf "-_"  -- シンボルに含める文字。 abc の b
              endLetter     = letter <|> digit <|> oneOf "_"   -- シンボルの終わりに含める文字。 abc の c
