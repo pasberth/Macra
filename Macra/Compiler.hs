@@ -1,16 +1,18 @@
 module Macra.Compiler (MacroMap,
+                       mkMacroMap,
                        compile,
-                       macroDefine,
                        macroExpand,
                        emptyMacroMap) where
 
 import qualified Data.Map as M
 import qualified Control.Monad.State as S
 import Control.Applicative
+import qualified Text.ParserCombinators.Parsec as Parsec
 import Macra.Parser hiding (Identifier)
 import Macra.VM hiding (Identifier)
 import qualified Macra.Parser as P
 import qualified Macra.VM as VM
+
 
 -- コンテキスト & id とマクロの関連。
 -- macroDefine で作り、 macroExpand で使用する。
@@ -39,23 +41,43 @@ data ExpandError = ExpandError
                  | ExpandArgumentError Macro [Node]
                  deriving (Eq, Show)
 
+data DefineError = DefineError
+                 deriving (Eq, Show)
+
 emptyMacroMap :: MacroMap
 emptyMacroMap = M.fromList []
 
-macroDefine :: [MacCxtNode] -> MacroMap
-macroDefine (x:xs) = macroDefineMacCxtNode (macroDefine xs) x
-macroDefine [] = emptyMacroMap
+mkMacroMap :: [MacCxtNode] -> IO (Either DefineError MacroMap)
+mkMacroMap [] = return $ Right emptyMacroMap
+mkMacroMap xs = do { r <- include (reverse xs)
+                   ; return $ (pure M.union <*> (define (reverse xs)) <*> r)
+                   }
 
-macroDefineMacCxtNode :: MacroMap -> MacCxtNode -> MacroMap
--- macroDefineMacCxtNode toplevelContext mm (MacDef1MNode id [] params node) =
---   M.insert (toplevelContext, id) ([], params, node) mm
-macroDefineMacCxtNode mm (MacDef1MNode id sig params node) =
-  M.insert ((last sig), id) ((init sig), params, node) mm
-macroDefineMacCxtNode mm (MacDef2MNode id sig params) =
-  M.insert ((last sig), id) ( (init sig)
-                            , []
-                            , (SymNode id)) mm
-macroDefineMacCxtNode mm (Shebang _ _) = mm
+include :: [MacCxtNode] -> IO (Either DefineError MacroMap)
+include [] = return $ Right emptyMacroMap
+include (x:xs) = do { result <- include xs
+                    ; case result of
+                      Right mm -> include' mm x
+                      Left err -> return $ Left err
+                    }
+               where include' mm (Include path) = do
+                       let path = "pure/" ++ path
+                       str <- readFile path
+                       case Parsec.parse compileTimeExpr path str of
+                         Right cnode -> return $ define cnode
+                         Left err -> return $ Left DefineError
+                     include' mm _ = return $ Right mm
+define :: [MacCxtNode] -> Either DefineError MacroMap
+define [] = Right emptyMacroMap
+define (x:xs) = (define xs) >>= flip define' x
+              where define' :: MacroMap -> MacCxtNode -> Either DefineError MacroMap
+                    define' mm (MacDef1MNode id sig params node) =
+                      Right $ M.insert ((last sig), id) ((init sig), params, node) mm
+                    define' mm (MacDef2MNode id sig params) =
+                      Right $ M.insert ((last sig), id) ( (init sig)
+                                                , []
+                                                , (SymNode id)) mm
+                    define' mm _ = Right mm
 
 macroExpand :: P.CxtId -> MacroMap -> P.CxtId -> Node -> Either ExpandError Node
 
