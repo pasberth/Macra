@@ -1,7 +1,7 @@
-#[ let expr        : letExpr  -> macra              = expr ]
+#[ let expr        : letExpr  -> *                  = expr ]
 #[ expr -> letBody : toplevel -> letBody -> letExpr = letBody expr ]
 #[ id, body        : symbol   -> letExpr -> letBody = !lambda id body ]
-#[ {a}             : macra    -> letExpr            = a ]
+#[ {a}             : *        -> letExpr            = a ]
 
 -------------------------
 局所変数を定義する。
