@@ -1,7 +1,7 @@
-#[ a; b : * -> * -> *   = !do a b ]
-#[ (a)  : * -> *        = a ]
-#[ {a}  : function -> * = a ]
-#[ [a]  : list -> *     = a ]
+#[ a; b : *        -> *   -> *   = !do a b ]
+#[ (a)  : *        -> *          = a ]
+#[ {a}  : function -> *          = a ]
+#[ [a]  : list     -> *          = a ]
 
 ----------------------------------------
   Standard IO
@@ -19,7 +19,7 @@
   Function Expressions
 ----------------------------------------
 #[ def id fn : symbol -> function -> *        = !define id fn ]
-#[ a => b    : symbol -> * -> function        = !lambda a b   ]
+#[ a => b    : symbol -> *        -> function = !lambda a b   ]
 #[ a, b      : symbol -> function -> function = !lambda a b   ]
 
 ----------------------------------------
