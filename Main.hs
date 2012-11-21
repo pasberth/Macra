@@ -32,7 +32,6 @@ main = do
                Left err -> print err
     "--insts":fname:xs ->  do
       str <- readFile fname
-      let toplevel = tail . takeExtension $ fname
       case parse compileTimeExpr fname str of
            Left x -> print x
            Right x ->
@@ -41,15 +40,14 @@ main = do
                Right expr -> do
                  r <- mkMacroMap x
                  case r of
-                   Right mm -> print $ compile toplevel mm expr
+                   Right mm -> print $ compile mm expr
                    Left err -> print err
     path:xs -> execFile path
 
 
 execFile path = do
   str <- readFile path
-  let toplevel = tail . takeExtension $ path
-      parseCompileTimeExpr = case parse compileTimeExpr path str of
+  let parseCompileTimeExpr = case parse compileTimeExpr path str of
                                     Left x -> print x
                                     Right cnode -> parseRunTimeExpr cnode
       parseRunTimeExpr cnode = case parse runTimeExpr path str of
@@ -60,7 +58,7 @@ execFile path = do
                                  case r of
                                    Left err -> print err
                                    Right mm ->
-                                     case compile toplevel mm node of
+                                     case compile mm node of
                                        Right inst -> execInst inst
                                        Left err -> print err
       execInst inst = vm inst

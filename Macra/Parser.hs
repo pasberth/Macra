@@ -120,7 +120,8 @@ macDef = macDef2 <|> macDef1 <?> "macro defination"
              macSig :: Parser MacSig
              macSig = macSig' <?> "signature"
                     where macSig' = try $ do
-                                  cxt <- symbol
+                                  -- toplevel の名前は '*'
+                                  cxt <- string "*" <|> symbol
                                   (try $ pure (\list -> cxt:list)
                                          <*> (requireSpaces >> string "->" >> requireSpaces >> macSig'))
                                     <|> return [cxt]

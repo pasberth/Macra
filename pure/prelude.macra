@@ -1,1 +1,1 @@
-#[ puts a : macra -> macra = !print a ]
+#[ puts a : * -> * = !print a ]

@@ -79,43 +79,45 @@ define (x:xs) = (define xs) >>= flip define' x
                                                 , (SymNode id)) mm
                     define' mm _ = Right mm
 
-macroExpand :: P.CxtId -> MacroMap -> P.CxtId -> Node -> Either ExpandError Node
+toplevelContext = "*"
 
-macroExpand _ _ _ NilNode = Right NilNode
-macroExpand _ _ _ node@(CharNode _) = Right node
-macroExpand _ _ _ node@(NumNode _) = Right node
-macroExpand toplevelContext mm cxt (IfNode a b c) =
+macroExpand :: MacroMap -> P.CxtId -> Node -> Either ExpandError Node
+
+macroExpand _ _ NilNode = Right NilNode
+macroExpand _ _ node@(CharNode _) = Right node
+macroExpand _ _ node@(NumNode _) = Right node
+macroExpand mm cxt (IfNode a b c) =
   pure IfNode
-       <*> macroExpand toplevelContext mm cxt a
-       <*> macroExpand toplevelContext mm cxt b
-       <*> macroExpand toplevelContext mm cxt c
-macroExpand toplevelContext mm cxt (LambdaNode var b) =
+       <*> macroExpand mm cxt a
+       <*> macroExpand mm cxt b
+       <*> macroExpand mm cxt c
+macroExpand mm cxt (LambdaNode var b) =
   pure (LambdaNode var)
-       <*> macroExpand toplevelContext mm cxt b
-macroExpand toplevelContext mm cxt (DefineNode var b) =
+       <*> macroExpand mm cxt b
+macroExpand mm cxt (DefineNode var b) =
   pure (DefineNode var)
-       <*> macroExpand toplevelContext mm cxt b
-macroExpand toplevelContext mm cxt (PrintNode a) =
+       <*> macroExpand mm cxt b
+macroExpand mm cxt (PrintNode a) =
   pure PrintNode
-       <*> macroExpand toplevelContext mm cxt a
-macroExpand toplevelContext mm cxt (ConsNode a b) =
+       <*> macroExpand mm cxt a
+macroExpand mm cxt (ConsNode a b) =
   pure ConsNode
-       <*> macroExpand toplevelContext mm cxt a
-       <*> macroExpand toplevelContext mm cxt b
-macroExpand toplevelContext mm cxt (CarNode a) =
+       <*> macroExpand mm cxt a
+       <*> macroExpand mm cxt b
+macroExpand mm cxt (CarNode a) =
   pure CarNode
-       <*> macroExpand toplevelContext mm cxt a
-macroExpand toplevelContext mm cxt (CdrNode a) =
+       <*> macroExpand mm cxt a
+macroExpand mm cxt (CdrNode a) =
   pure CdrNode
-       <*> macroExpand toplevelContext mm cxt a
-macroExpand toplevelContext mm cxt (DoNode a b) =
+       <*> macroExpand mm cxt a
+macroExpand mm cxt (DoNode a b) =
   pure DoNode
-       <*> macroExpand toplevelContext mm cxt a
-       <*> macroExpand toplevelContext mm cxt b
--- SymNode か Funcall かあるいは NilNode や CharNode など引数のない Node の場合
-macroExpand toplevelContext mm cxt node =
+       <*> macroExpand mm cxt a
+       <*> macroExpand mm cxt b
+-- SymNode か Funcall の場合
+macroExpand mm cxt node =
   case lookupMacro mm cxt node of
-    Nothing -> macroExpandFuncall toplevelContext mm cxt node
+    Nothing -> macroExpandFuncall mm cxt node
     Just (macro@(sig, params, macroNode), args)
       | length params > length args -> Left $ ExpandArgumentError macro args
       -- もし sig が足りなければ、すべて toplevel として扱う
@@ -123,7 +125,7 @@ macroExpand toplevelContext mm cxt node =
       | otherwise -> (expandArgs sigAndArgs) >>=
                      (\args -> let fargs = drop (length params) args
                                in macroReplace macroNode (zip params args) >>= (\x -> Right $ foldl FuncallNode x fargs) )
-      where expandArg (cxt, arg) = macroExpand toplevelContext mm cxt arg
+      where expandArg (cxt, arg) = macroExpand mm cxt arg
             sigAndArgs :: [(CxtId, Node)]
             sigAndArgs = zip (sig ++ repeat toplevelContext) args
             expandArgs :: [(CxtId, Node)] -> Either ExpandError [Node]
@@ -132,14 +134,14 @@ macroExpand toplevelContext mm cxt node =
 
 -- 存在しないマクロはすべて関数適用として展開する
 -- macroExpand で lookupMacro が Nothing の場合のみ呼ばれる
-macroExpandFuncall :: P.CxtId -> MacroMap -> P.CxtId -> Node -> Either ExpandError Node
-macroExpandFuncall toplevelContext mm cxt node@(SymNode _) = Right node
-macroExpandFuncall toplevelContext mm cxt node@(FuncallNode a b) =
+macroExpandFuncall :: MacroMap -> P.CxtId -> Node -> Either ExpandError Node
+macroExpandFuncall mm cxt node@(SymNode _) = Right node
+macroExpandFuncall mm cxt node@(FuncallNode a b) =
                    pure FuncallNode
-                        <*> macroExpand toplevelContext mm cxt a
-                        <*> macroExpand toplevelContext mm cxt b
+                        <*> macroExpand mm cxt a
+                        <*> macroExpand mm cxt b
 -- Funcall と SymNode 以外は macroExpand と同じように展開する
-macroExpandFuncall toplevelContext mm cxt node = macroExpand toplevelContext mm cxt node
+macroExpandFuncall mm cxt node = macroExpand mm cxt node
 
 -- Node からマクロと引数を取り出す。
 -- たとえば !funcall !funcall f a b で、もし f マクロが定義されているなら
@@ -204,9 +206,9 @@ macroReplaceSym var ((param, arg):xs)
                 | param == var = Left ExpandError
                 | otherwise = macroReplaceSym var xs
 
-compile :: P.CxtId -> MacroMap -> Node -> Either CompileError Inst 
-compile toplevelContext mm x =
-        case  (macroExpand toplevelContext mm toplevelContext x) of
+compile :: MacroMap -> Node -> Either CompileError Inst 
+compile mm x =
+        case  (macroExpand mm toplevelContext x) of
           Right node -> Right (compileNode node HaltInst)
           Left err -> Left (CompileExpandError err)
 
