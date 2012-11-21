@@ -1,5 +1,0 @@
-!do
-  !define f !lambda x a
-  !do
-    !define a 1
-    !print !funcall f 2

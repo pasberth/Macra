@@ -1,0 +1,22 @@
+#[ let expr        : letExpr  -> *                  = expr ]
+#[ expr -> letBody : toplevel -> letBody -> letExpr = letBody expr ]
+#[ id, body        : symbol   -> letExpr -> letBody = !lambda id body ]
+#[ {a}             : *        -> letExpr            = a ]
+
+-------------------------
+局所変数を定義する。
+
+let expr1 -> id1,
+    expr2 -> id2, {
+    }
+
+と使う。
+
+これは実際にはラムダに置換される。
+-------------------------
+let 1 -> x,
+    2 -> y, {
+      !do
+        !print x
+        !print y
+   }

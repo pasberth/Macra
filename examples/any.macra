@@ -1,0 +1,14 @@
+#[ any a : other          -> *           = a ]
+#[ {a}   : other          -> other       = a ]
+#[ a; b  : *     -> other -> other = !lambda nil !if nil nil b a ]
+
+------------------------------------
+  any { a; b; c } の形式で呼ぶ。
+  a, b, c を順に評価し、もし
+  真であればその時点でそれを返す。
+  そうでなければ次の式を評価する。
+------------------------------------
+any { !print nil
+    ; !print 1
+    ; !print 2
+    }

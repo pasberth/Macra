@@ -1,0 +1,20 @@
+#[ all a : allExpr            -> *        = a ]
+#[ {a}   : allExpr            -> allExpr  = a ]
+#[ a; b  : *       -> allExpr -> allExpr  = !lambda _ !if _ b nil a ]
+#[ end   :                       allExpr  = _ ]
+
+-----------------------------------
+
+all { a; b; c; end } の形式で使う。
+a, b, c を順に評価し、 nil であれば
+その時点で nil を返す。
+そうでなければ次の式を評価する。
+
+直前の式の戻り値は `_' で参照できる。
+-----------------------------------
+all { !print 1
+    ; !print _
+    ; !print nil
+    ; !print 2
+    ; end
+    }

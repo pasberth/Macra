@@ -1,7 +1,0 @@
-!do
-  !define f !lambda x !lambda y a
-  !do
-    !define g !funcall f 1
-    !do
-      !define a 100
-      !print !funcall g 2

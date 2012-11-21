@@ -1,7 +1,0 @@
-!do
-  !define true !lambda x !lambda y x
-  !do
-    !define false !lambda x !lambda y y
-    !do
-      !print !funcall !funcall true 1 2
-      !print !funcall !funcall false 1 2
