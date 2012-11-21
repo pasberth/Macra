@@ -351,7 +351,7 @@ exclamExpr = try $ string "!" >> ( excIf <|> excLambda <|> excDefine <|>
 
 
                   parseExpr :: Parser Node
-                  parseExpr = arrow <?> "a expression"
+                  parseExpr = prim <?> "a expression"
 
 
 skipComment :: Parser ()
