@@ -64,7 +64,7 @@ include (x:xs) = do { result <- include xs
                        let path = "pure/" ++ path
                        str <- readFile path
                        case Parsec.parse compileTimeExpr path str of
-                         Right cnode -> return $ define cnode
+                         Right cnode -> mkMacroMap cnode
                          Left err -> return $ Left DefineError
                      include' mm _ = return $ Right mm
 define :: [MacCxtNode] -> Either DefineError MacroMap
