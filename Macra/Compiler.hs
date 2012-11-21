@@ -93,7 +93,7 @@ macroExpand toplevelContext mm cxt (DoNode a b) =
 -- SymNode か Funcall かあるいは NilNode や CharNode など引数のない Node の場合
 macroExpand toplevelContext mm cxt node =
   case lookupMacro mm cxt node of
-    Nothing -> macroExpandFuncall toplevelContext mm cxt node
+    Nothing -> Right node
     Just (macro@(sig, params, macroNode), args)
       | length params > length args -> Left $ ExpandArgumentError macro args
       -- もし sig が足りなければ、すべて toplevel として扱う
@@ -108,23 +108,17 @@ macroExpand toplevelContext mm cxt node =
             expandArgs [] = Right []
             expandArgs (x:xs) = expandArg x >>= (\x -> expandArgs xs >>= (\xs -> Right (x:xs)))
 
--- 存在しないマクロはすべて関数適用として展開する
--- macroExpand で lookupMacro が Nothing の場合のみ呼ばれる
-macroExpandFuncall :: P.CxtId -> MacroMap -> P.CxtId -> Node -> Either ExpandError Node
-macroExpandFuncall toplevelContext mm cxt node@(SymNode _) = Right node
-macroExpandFuncall toplevelContext mm cxt node@(FuncallNode a b) =
-                   pure FuncallNode
-                        <*> macroExpand toplevelContext mm cxt a
-                        <*> macroExpand toplevelContext mm cxt b
--- Funcall と SymNode 以外は macroExpand と同じように展開する
-macroExpandFuncall toplevelContext mm cxt node = macroExpand toplevelContext mm cxt node
 
 -- Node からマクロと引数を取り出す。
 -- たとえば !funcall !funcall f a b で、もし f マクロが定義されているなら
 -- Just (macro, [a, b]) を返す。もしマクロがないなら Nothing を返す
 lookupMacro :: MacroMap -> P.CxtId -> Node -> Maybe (Macro, [Node])
 lookupMacro mm cxtId node@(SymNode macroId) =
-  pure (\macro -> (macro, [])) <*> M.lookup (cxtId, macroId) mm
+  case M.lookup (cxtId, macroId) mm of
+    Just macro -> Just (macro, [])
+    -- 存在しないマクロは、引数なしかつシグネチャなしのマクロと同じ。
+    -- #[ a : macra = a ]
+    Nothing    -> Just (([cxtId], [], node), [])
 lookupMacro mm cxtId node@(FuncallNode a b) =
   pure (\(macro, args) -> (macro, args ++ [b])) <*> lookupMacro mm cxtId a
 lookupMacro _ _ _ = Nothing
