@@ -137,11 +137,10 @@ macDef = macDef1 <?> "macro defination"
                                infixOp = foldl (\x y -> x <|> y)
                                                (head infixOpList)
                                                (tail infixOpList)
-                               infixMacDef = try $ pure (\param1 id param2 params -> (id, (param1:param2:params)))
+                               infixMacDef = try $ pure (\param1 id param2 -> (id, [param1, param2]))
                                                    <*> symbol
                                                    <*> (skipSpaces >> infixOp)
                                                    <*> (skipSpaces >> symbol)
-                                                   <*> (many (try $ requireSpaces >> symbol))
                                prefixMacDef = try $ pure (\id params -> (id, params))
                                                     <*> symbol
                                                     <*> many (try $ requireSpaces >> symbol)
