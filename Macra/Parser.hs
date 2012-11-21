@@ -128,7 +128,7 @@ macDef = macDef1 <?> "macro defination"
                                                        <*> (string beg)
                                                        <*> (skipSpaces >> symbol)
                                                        <*> (skipSpaces >> (string end))
-                               infixOpList = [ string ":" >> mark
+                               infixOpList = [ pure (++) <*> string ":" <*> mark
                                              , string "=>"
                                              , string "->"
                                              , string ","
@@ -147,7 +147,7 @@ macDef = macDef1 <?> "macro defination"
                                                     <*> many (try $ requireSpaces >> symbol)
                                suffixMacDef = try $ pure (\params id -> (id, params))
                                                     <*> many1 symbol
-                                                    <*> (skipSpaces >> string "@" >> mark)
+                                                    <*> (skipSpaces >> (pure (++) <*> string "@" <*> mark))
 
 ----------------------------------------
 -- Runtime Expression
@@ -181,9 +181,9 @@ funcall :: Parser Node
 funcall = funcall' <?> "funcall-expression"
         where prefixOp = requireSpaces >> return FuncallNode
               infixOp = try $ pure (\id a -> FuncallNode (FuncallNode (SymNode id) a))
-                              <*> (skipSpaces >> string ":" >> mark)
+                              <*> (skipSpaces >> (pure (++) <*> string ":" <*> mark))
               suffixOp = try $ pure (\id -> FuncallNode (SymNode id))
-                               <*> (skipSpaces >> string "@" >> mark)
+                               <*> (skipSpaces >> (pure (++) <*> string "@" <*> mark))
               funcall' = try $ do
                        expr1 <- arrow
                        sfxes <- many ((try $ pure (\op expr2 node -> op node expr2)
