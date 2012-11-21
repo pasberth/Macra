@@ -60,8 +60,8 @@ include (x:xs) = do { result <- include xs
                       Right mm -> include' mm x
                       Left err -> return $ Left err
                     }
-               where include' mm (Include path) = do
-                       let path = "pure/" ++ path
+               where include' mm (Include path') = do
+                       let path = "pure/" ++ path'
                        str <- readFile path
                        case Parsec.parse compileTimeExpr path str of
                          Right cnode -> mkMacroMap cnode
