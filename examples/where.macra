@@ -1,7 +1,0 @@
-#[ body :where id expr : * -> symbol -> * -> * = !lambda id body expr ]
-
-!do
-  !print x
-  !print y
-    :where x 1
-    :where y 2
