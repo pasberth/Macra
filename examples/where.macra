@@ -1,5 +1,4 @@
-#[ body :where id expr : macra -> symbol -> macra -> macra
-                       = !lambda id body expr ]
+#[ body :where id expr : * -> symbol -> * -> * = !lambda id body expr ]
 
 !do
   !print x
