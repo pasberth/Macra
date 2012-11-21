@@ -16,6 +16,11 @@
 #[ or  a b : * -> * -> * = !if a 0   b   ]
 
 ----------------------------------------
+  Conditional Expressions
+----------------------------------------
+#[ if a b c : * -> * -> * = !if a b c ]
+
+----------------------------------------
   Function Expressions
 ----------------------------------------
 #[ def id fn : symbol -> function -> *        = !define id fn ]
@@ -25,12 +30,15 @@
 ----------------------------------------
   List Expressions
 ----------------------------------------
-#[ a, b : * -> list -> list = !cons a b ]
-#[ a; b : * -> list -> list = !cons a b ]
+#[ car xs     : * -> *            = !car xs    ]
+#[ cdr xs     : * -> *            = !cdr xs    ]
+#[ x :cons xs : * -> *    -> list = !cons x xs ]
+#[ a, b       : * -> list -> list = !cons a b  ]
+#[ a; b       : * -> list -> list = !cons a b  ]
 
 def map f, xs =>
-  !if (not xs)
+  if (not xs)
       xs
-      (!cons (f !car xs) (map f !cdr xs))
+      [f (car xs) :cons (map f (cdr xs))]
 
 ; map { x => puts x } [1, 2, 3, nil]
