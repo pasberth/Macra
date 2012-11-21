@@ -81,10 +81,10 @@ macroExpand toplevelContext mm cxt (ConsNode a b) =
        <*> macroExpand toplevelContext mm cxt a
        <*> macroExpand toplevelContext mm cxt b
 macroExpand toplevelContext mm cxt (CarNode a) =
-  pure PrintNode
+  pure CarNode
        <*> macroExpand toplevelContext mm cxt a
 macroExpand toplevelContext mm cxt (CdrNode a) =
-  pure PrintNode
+  pure CdrNode
        <*> macroExpand toplevelContext mm cxt a
 macroExpand toplevelContext mm cxt (DoNode a b) =
   pure DoNode
