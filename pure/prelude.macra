@@ -42,3 +42,4 @@ def map f, xs =>
       [f (car xs) :cons (map f (cdr xs))]
 
 ; map { x => puts x } [1, 2, 3, nil]
+; def flip f, x, y => f y x
