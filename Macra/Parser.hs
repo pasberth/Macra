@@ -163,34 +163,40 @@ runTimeExpr = do { skipSpaces
 -- もっとも優先順位の低い中置関数。
 -- a; b; c は a ; (b ; c) のように右に再帰する。
 -- semicolon-expression:
---   funcall-expression; semicolon-expression
---   funcall-expression
+--   coloninfix-expression; semicolon-expression
+--   coloninfix-expression
 semicolon :: Parser Node
-semicolon = try semicolon' <|> funcall <?> "semicolon-expression"
+semicolon = try semicolon' <|> coloninfix <?> "semicolon-expression"
           where semicolon' = pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
-                           <*> funcall
+                           <*> coloninfix
                            <*> (skipSpaces >> string ";")
                            <*> (skipSpaces >> semicolon)
 
+-- coloninfix-expression:
+--   coloninfix-expression :identifier funcall-expression
+--   funcall-expression
+coloninfix :: Parser Node
+coloninfix = coloninfix' <?> "coloninfix-expression"
+           where infixOp = do { skipSpaces
+                              ; x <- (pure (++) <*> string ":" <*> mark)
+                              ; skipSpaces
+                              ; return (\y z -> (FuncallNode (FuncallNode (SymNode x) y) z))
+                              }
+                 coloninfix' = try $ do
+                             expr <- funcall
+                             exprs <- many (try $ pure flip <*> infixOp <*> (skipSpaces >> funcall))
+                             return $ foldl (\a b -> b a) expr exprs
+
 -- funcall-expression:
 --   funcall-expression arrow-expression
---   funcall-expression :identifier arrow-expression
---   funcall-expression @identifier
 --   arrow-expression
 funcall :: Parser Node
 funcall = funcall' <?> "funcall-expression"
         where prefixOp = requireSpaces >> return FuncallNode
-              infixOp = try $ pure (\id a -> FuncallNode (FuncallNode (SymNode id) a))
-                              <*> (skipSpaces >> (pure (++) <*> string ":" <*> mark))
-              suffixOp = try $ pure (\id -> FuncallNode (SymNode id))
-                               <*> (skipSpaces >> (pure (++) <*> string "@" <*> mark))
               funcall' = try $ do
-                       expr1 <- arrow
-                       sfxes <- many ((try $ pure (\op expr2 node -> op node expr2)
-                                             <*> (infixOp <|> prefixOp)
-                                             <*> (skipSpaces >> arrow))
-                                  <|> (try suffixOp))
-                       return $ foldl (\expr sfx -> sfx expr) expr1 sfxes
+                       expr <- arrow
+                       exprs <- many (try $ pure flip <*> prefixOp <*> (skipSpaces >> arrow))
+                       return $ foldl (\a b -> b a) expr exprs
 
 
 -- arrow-expression:
