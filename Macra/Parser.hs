@@ -21,9 +21,6 @@ type Identifier = String
 data MacCxtNode -- 普通のマクロ定義。
                 -- #[ m a : t -> u = a ]
                 = MacDef1MNode Identifier MacSig MacParams Node
-                -- 関数に対するコンテキストの定義。
-                -- # f :: t -> u
-                | MacDef2MNode Identifier MacSig MacParams
                 -- #!/usr/bin/env macra -opt
                 -- であれば、 "/usr/bin/env" が FilePath 、 "macra -opt" が String となる
                 -- 通常は使用しないだろう、いちおうパースして使用できるようにしておく
@@ -103,12 +100,8 @@ require :: Parser MacCxtNode
 require = try $ pure Require <*> ( skipSpaces >> string "require" >> skipSpaces >> many1 (noneOf " \t\n"))
 
 macDef :: Parser MacCxtNode
-macDef = macDef2 <|> macDef1 <?> "macro defination"
-       where macDef2 = try $ pure (\(id, params) sig -> MacDef2MNode id sig params)
-                             <*> ( skipSpaces >> idAndParams)
-                             <*> ( requireSpaces >> string "::"
-                                >> requireSpaces >> macSig )
-             macDef1 = try $ pure (\(id, params) sig defi end -> MacDef1MNode id sig params defi)
+macDef = macDef1 <?> "macro defination"
+       where macDef1 = try $ pure (\(id, params) sig defi end -> MacDef1MNode id sig params defi)
                              <*> ( skipSpaces >> string "["
                                 >> skipSpaces >> idAndParams )
                              <*> ( requireSpaces >> string ":"

@@ -73,10 +73,6 @@ define (x:xs) = (define xs) >>= flip define' x
               where define' :: MacroMap -> MacCxtNode -> Either DefineError MacroMap
                     define' mm (MacDef1MNode id sig params node) =
                       Right $ M.insert ((last sig), id) ((init sig), params, node) mm
-                    define' mm (MacDef2MNode id sig params) =
-                      Right $ M.insert ((last sig), id) ( (init sig)
-                                                , []
-                                                , (SymNode id)) mm
                     define' mm _ = Right mm
 
 toplevelContext = "*"
