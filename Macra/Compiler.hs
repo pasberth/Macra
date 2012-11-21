@@ -62,9 +62,12 @@ macroExpand toplevelContext mm cxt node =
   case lookupMacro mm cxt node of
     Nothing -> Right node
     Just (macro@(sig, params, macroNode), args)
-      | length params /= length args -> Left $ ExpandArgumentError macro args
+      | length params > length args -> Left $ ExpandArgumentError macro args
       -- もし sig が足りなければ、すべて toplevel として扱う
-      | otherwise -> (expandArgs sigAndArgs) >>= (\args -> macroReplace macroNode params args)
+      -- もし params が足りなければ、あふれた args はすべて funcall の引数として扱う
+      | otherwise -> (expandArgs sigAndArgs) >>=
+                     (\args -> let fargs = drop (length params) args
+                               in macroReplace macroNode (zip params args) >>= (\x -> Right $ foldl FuncallNode x fargs) )
       where expandArg (cxt, arg) = macroExpand toplevelContext mm cxt arg
             sigAndArgs :: [(CxtId, Node)]
             sigAndArgs = zip (sig ++ repeat toplevelContext) args
@@ -82,58 +85,58 @@ lookupMacro mm cxtId node@(FuncallNode a b) =
   pure (\(macro, args) -> (macro, args ++ [b])) <*> lookupMacro mm cxtId a
 lookupMacro _ _ _ = Nothing
 
-macroReplace :: Node -> MacParams -> [Node] -> Either ExpandError Node
-macroReplace node [] [] = Right node
-macroReplace node@(SymNode sym) (param:params) (arg:args)
+macroReplace :: Node -> [(P.Identifier, Node)] -> Either ExpandError Node
+macroReplace node [] = Right node
+macroReplace node@(SymNode sym) ((param, arg):xs)
              | param == sym = Right arg
-             | otherwise = macroReplace node params args
-macroReplace NilNode _ _ = Right NilNode
-macroReplace node@(CharNode _) _ _ = Right node
-macroReplace node@(NumNode _) _ _ = Right node
-macroReplace (FuncallNode a b) params args =
+             | otherwise = macroReplace node xs
+macroReplace NilNode _ = Right NilNode
+macroReplace node@(CharNode _) _ = Right node
+macroReplace node@(NumNode _) _ = Right node
+macroReplace (FuncallNode a b) xs =
              pure FuncallNode
-                  <*> (macroReplace a params args)
-                  <*> (macroReplace b params args)
-macroReplace (IfNode a b c) params args =
+                  <*> (macroReplace a xs)
+                  <*> (macroReplace b xs)
+macroReplace (IfNode a b c) xs =
              pure IfNode
-                  <*> (macroReplace a params args)
-                  <*> (macroReplace b params args)
-                  <*> (macroReplace c params args)
-macroReplace (LambdaNode var b) params args =
+                  <*> (macroReplace a xs)
+                  <*> (macroReplace b xs)
+                  <*> (macroReplace c xs)
+macroReplace (LambdaNode var b) xs =
              pure LambdaNode
-                  <*> (macroReplaceSym var params args)
-                  <*> (macroReplace b params args)
-macroReplace (DefineNode var b) params args =
+                  <*> (macroReplaceSym var xs)
+                  <*> (macroReplace b xs)
+macroReplace (DefineNode var b) xs =
              pure DefineNode
-                  <*> (macroReplaceSym var params args)
-                  <*> (macroReplace b params args)
-macroReplace (PrintNode a) params args =
-             pure PrintNode <*> (macroReplace a params args)
-macroReplace (ConsNode a b) params args =
+                  <*> (macroReplaceSym var xs)
+                  <*> (macroReplace b xs)
+macroReplace (PrintNode a) xs =
+             pure PrintNode <*> (macroReplace a xs)
+macroReplace (ConsNode a b) xs =
              pure ConsNode
-                  <*> (macroReplace a params args)
-                  <*> (macroReplace b params args)
-macroReplace (CarNode a) params args =
-             pure CarNode <*> (macroReplace a params args)
-macroReplace (CdrNode a) params args =
-             pure CdrNode <*> (macroReplace a params args)
-macroReplace (DoNode a b) params args =
-             pure DoNode <*> (macroReplace a params args)
-                         <*> (macroReplace b params args)
+                  <*> (macroReplace a xs)
+                  <*> (macroReplace b xs)
+macroReplace (CarNode a) xs =
+             pure CarNode <*> (macroReplace a xs)
+macroReplace (CdrNode a) xs =
+             pure CdrNode <*> (macroReplace a xs)
+macroReplace (DoNode a b) xs =
+             pure DoNode <*> (macroReplace a xs)
+                         <*> (macroReplace b xs)
 
-macroReplaceSym :: P.Identifier -> [P.Identifier] -> [Node] -> Either ExpandError P.Identifier
-macroReplaceSym var [] [] = Right var
-macroReplaceSym var (param:params) ((P.SymNode arg):args)
+macroReplaceSym :: P.Identifier -> [(P.Identifier, Node)] -> Either ExpandError P.Identifier
+macroReplaceSym var [] = Right var
+macroReplaceSym var ((param, (P.SymNode arg)):xs)
                 | param == var = Right arg
-                | otherwise = macroReplaceSym var params args
+                | otherwise = macroReplaceSym var xs
 
-macroReplaceSym var (param:params) (arg:args)
+macroReplaceSym var ((param, arg):xs)
                 -- たとえば
                 --   #[ a => b : t = !lambda a b  ] と定義して、
                 -- (1, 2) => x が !lambda (1, 2) x に展開されてしまった場合など。
                 -- TODO: 単に ExpandError ではなく、なにかメッセージを付ける
                 | param == var = Left ExpandError
-                | otherwise = macroReplaceSym var params args
+                | otherwise = macroReplaceSym var xs
 
 compile :: P.CxtId -> MacroMap -> Node -> Either CompileError Inst 
 compile toplevelContext mm x =
