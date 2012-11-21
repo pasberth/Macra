@@ -2,6 +2,7 @@
 module Main where
 
 import System.Environment(getArgs)
+import System.FilePath.Posix(takeExtension)
 import Text.ParserCombinators.Parsec
 import Macra.Parser
 import Macra.VM
@@ -27,20 +28,27 @@ main = do
            Right x -> print (macroDefine x)
     "--insts":fname:xs ->  do
       str <- readFile fname
+      let toplevel = tail . takeExtension $ fname
       case parse compileTimeExpr fname str of
            Left x -> print x
            Right x ->
              case parse runTimeExpr fname str of
                Left x -> print x
-               Right expr -> print $ compile (macroDefine x) expr
-    path:xs -> do
-            str <- readFile path
-            case parse compileTimeExpr path str of
-              Left x -> print x
-              Right x ->
-                case parse runTimeExpr path str of
-                  Left x -> print x
-                  Right expr ->
-                    case compile (macroDefine x) expr of
-                      Right inst -> vm inst
-                      Left err -> print err
+               Right expr -> print $ compile toplevel (macroDefine x) expr
+    path:xs -> execFile path
+
+
+execFile path = do
+  str <- readFile path
+  let toplevel = tail . takeExtension $ path
+      parseCompileTimeExpr = case parse compileTimeExpr path str of
+                                    Left x -> print x
+                                    Right cnode -> parseRunTimeExpr cnode
+      parseRunTimeExpr cnode = case parse runTimeExpr path str of
+                                      Left x -> print x
+                                      Right node -> compileNode cnode node
+      compileNode cnode node = case compile toplevel (macroDefine cnode) node of
+                                  Right inst -> execInst inst
+                                  Left err -> print err
+      execInst inst = vm inst
+  parseCompileTimeExpr

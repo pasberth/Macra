@@ -1,4 +1,4 @@
-#[ a; b : toplevel -> toplevel -> toplevel
+#[ a; b : macra -> macra -> macra
         = !do a b ]
 
 !define cons

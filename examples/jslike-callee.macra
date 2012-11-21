@@ -1,9 +1,9 @@
-#[ function a : function             -> toplevel = !lambda nil !define callee a nil ]
+#[ function a : function             -> macra = !lambda nil !define callee a nil ]
 #[ a, b       : symbol   -> function -> function = !lambda a b ]
-#[ a => b     : symbol   -> toplevel -> function = !lambda a b ]
-#[ {a}        : toplevel             -> toplevel = a ]
-#[ a; b       : toplevel -> toplevel -> toplevel = !do a b ]
-#[ (a)        : toplevel             -> toplevel = a ]
+#[ a => b     : symbol   -> macra    -> function = !lambda a b ]
+#[ {a}        : macra                -> macra = a ]
+#[ a; b       : macra    -> macra    -> macra = !do a b ]
+#[ (a)        : macra                -> macra = a ]
 
 -------------------------------------------------
   無名関数で再帰ができる function マクロ。

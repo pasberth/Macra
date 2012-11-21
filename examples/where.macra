@@ -1,4 +1,4 @@
-#[ body :where id expr : toplevel -> symbol -> toplevel -> toplevel
+#[ body :where id expr : macra -> symbol -> macra -> macra
                        = !lambda id body expr ]
 
 !do
