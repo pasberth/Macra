@@ -58,6 +58,36 @@ macroDefineMacCxtNode mm (MacDef2MNode id sig params) =
 macroDefineMacCxtNode mm (Shebang _ _) = mm
 
 macroExpand :: P.CxtId -> MacroMap -> P.CxtId -> Node -> Either ExpandError Node
+
+macroExpand toplevelContext mm cxt (IfNode a b c) =
+  pure IfNode
+       <*> macroExpand toplevelContext mm cxt a
+       <*> macroExpand toplevelContext mm cxt b
+       <*> macroExpand toplevelContext mm cxt c
+macroExpand toplevelContext mm cxt (LambdaNode var b) =
+  pure (LambdaNode var)
+       <*> macroExpand toplevelContext mm cxt b
+macroExpand toplevelContext mm cxt (DefineNode var b) =
+  pure (DefineNode var)
+       <*> macroExpand toplevelContext mm cxt b
+macroExpand toplevelContext mm cxt (PrintNode a) =
+  pure PrintNode
+       <*> macroExpand toplevelContext mm cxt a
+macroExpand toplevelContext mm cxt (ConsNode a b) =
+  pure ConsNode
+       <*> macroExpand toplevelContext mm cxt a
+       <*> macroExpand toplevelContext mm cxt b
+macroExpand toplevelContext mm cxt (CarNode a) =
+  pure PrintNode
+       <*> macroExpand toplevelContext mm cxt a
+macroExpand toplevelContext mm cxt (CdrNode a) =
+  pure PrintNode
+       <*> macroExpand toplevelContext mm cxt a
+macroExpand toplevelContext mm cxt (DoNode a b) =
+  pure DoNode
+       <*> macroExpand toplevelContext mm cxt a
+       <*> macroExpand toplevelContext mm cxt b
+-- SymNode か Funcall かあるいは NilNode や CharNode など引数のない Node の場合
 macroExpand toplevelContext mm cxt node =
   case lookupMacro mm cxt node of
     Nothing -> Right node
