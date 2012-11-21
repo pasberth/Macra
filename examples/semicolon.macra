@@ -15,7 +15,7 @@
 
 ---------------------------------------------
 
-#[ a; b : macra -> macra -> macra = !do a b ]
+#[ a; b : * -> * -> * = !do a b ]
 
 !print "hoge";
 !print "fuga";
