@@ -110,6 +110,10 @@ macroExpand mm cxt (DoNode a b) =
   pure DoNode
        <*> macroExpand mm cxt a
        <*> macroExpand mm cxt b
+macroExpand mm cxt (EqualNode a b) =
+  EqualNode
+       <$> macroExpand mm cxt a
+       <*> macroExpand mm cxt b
 -- SymNode か Funcall の場合
 macroExpand mm cxt node =
   case lookupMacro mm cxt node of
@@ -187,6 +191,10 @@ macroReplace (CdrNode a) xs =
 macroReplace (DoNode a b) xs =
              pure DoNode <*> (macroReplace a xs)
                          <*> (macroReplace b xs)
+macroReplace (EqualNode a b) xs =
+             pure EqualNode
+                  <*> (macroReplace a xs)
+                  <*> (macroReplace b xs)
 
 macroReplaceSym :: P.Identifier -> [(P.Identifier, Node)] -> Either ExpandError P.Identifier
 macroReplaceSym var [] = Right var
@@ -236,4 +244,5 @@ compileNode (ConsNode a b) next = compileNode a (ArgInst (compileNode b (ConsIns
 compileNode (CarNode node) next = compileNode node (CarInst next)
 compileNode (CdrNode node) next = compileNode node (CdrInst next)
 compileNode (DoNode a b) next = compileNode a (compileNode b next)
+compileNode (EqualNode a b) next = compileNode a (ArgInst (compileNode b (EqualInst next)))
 compileNode (NativeNode a) next = NativeInst a next
