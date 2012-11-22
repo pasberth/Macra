@@ -53,6 +53,7 @@ data Node = SymNode Identifier
           | CdrNode Node
           | DoNode Node Node
           | NativeNode Integer
+          | EqualNode Node Node
           deriving (Eq)
 
 instance Show Node where
@@ -70,6 +71,7 @@ instance Show Node where
   show (CdrNode a) = concat ["!cdr", show a]
   show (DoNode a b) = concat ["!do", (indent2 $ show a), (indent2 $ show b)]
   show (NativeNode a) = "!native " ++ (show a)
+  show (EqualNode a b) = concat ["!equal", (indent2 $ show a), (indent2 $ show b)]
 
 indent :: String -> String -> String
 indent idt node = foldl (\str x -> concat [str, "\n", idt,  x]) "" (lines node)
@@ -300,7 +302,8 @@ symbol = symbol' <?> "symbol"
 exclamExpr :: Parser Node
 exclamExpr = try $ string "!" >> ( excIf <|> excLambda <|> excDefine <|>
                                    excFuncall <|> excPrint <|> excCons <|>
-                                   excCar <|> excCdr <|> excDo <|> excNative )
+                                   excCar <|> excCdr <|> excDo <|> excNative
+                                   <|> excEqual )
             where excIf :: Parser Node
                   excIf = IfNode
                           <$> (try $ string "if" >> requireSpaces >> parseExpr)
@@ -353,6 +356,11 @@ exclamExpr = try $ string "!" >> ( excIf <|> excLambda <|> excDefine <|>
                                   nativeId = foldl (\x id -> x <|> accept id)
                                                    (accept $ head idList)
                                                    (tail idList) <?> "native id"
+
+                  excEqual :: Parser Node
+                  excEqual = EqualNode
+                            <$> (try $ string "equal" >> requireSpaces >> parseExpr)
+                            <*> (requireSpaces >> parseExpr)
 
 
                   parseExpr :: Parser Node
