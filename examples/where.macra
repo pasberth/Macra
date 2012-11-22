@@ -1,0 +1,7 @@
+#[ func :is arg      : where -> * -> *     = !funcall func arg  ]
+#[ body :where param : *     -> * -> where = !lambda param body ]
+#[ body :and   param : *     -> * -> where = !lambda param body ]
+
+!do !print x
+    !print y :where x :is 1
+             :and   y :is 2
