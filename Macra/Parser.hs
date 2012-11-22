@@ -179,7 +179,7 @@ coloninfix = coloninfix' <?> "coloninfix-expression"
            where infixOp = do { skipSpaces
                               ; x <- (pure (++) <*> string ":" <*> mark)
                               ; skipSpaces
-                              ; return (\y z -> (FuncallNode (FuncallNode (SymNode x) y) z))
+                              ; return (FuncallNode . (FuncallNode . SymNode) x)
                               }
                  coloninfix' = try $ do
                              expr <- funcall
