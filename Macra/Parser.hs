@@ -134,7 +134,7 @@ macDef = macDef1 <?> "macro defination"
                                              , string ","
                                              , string ";"
                                              ]
-                               infixOp = foldl (\x y -> x <|> y)
+                               infixOp = foldl (<|>)
                                                (head infixOpList)
                                                (tail infixOpList)
                                infixMacDef = try $ pure (\param1 id param2 -> (id, [param1, param2]))
