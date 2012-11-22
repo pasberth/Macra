@@ -256,7 +256,7 @@ prim = bracket <|> exclamExpr <|> strLit <|> charLit <|> id <|> num
            strLit :: Parser Node
            strLit = do
                   str <- str'
-                  return $ foldr (\ch str -> ConsNode ch str) NilNode str
+                  return $ foldr ConsNode NilNode str
                   where char' :: Parser Node
                         char' = liftM CharNode (try (string "\\\"" >> return '"')
                                              <|> noneOf ['"'])
