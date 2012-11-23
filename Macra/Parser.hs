@@ -53,6 +53,7 @@ data Node = SymNode Identifier
           | CdrNode Node
           | DoNode Node Node
           | NativeNode Integer
+          | EqualNode Node Node
           deriving (Eq)
 
 instance Show Node where
@@ -70,6 +71,7 @@ instance Show Node where
   show (CdrNode a) = concat ["!cdr", show a]
   show (DoNode a b) = concat ["!do", (indent2 $ show a), (indent2 $ show b)]
   show (NativeNode a) = "!native " ++ (show a)
+  show (EqualNode a b) = concat ["!equal", (indent2 $ show a), (indent2 $ show b)]
 
 indent :: String -> String -> String
 indent idt node = foldl (\str x -> concat [str, "\n", idt,  x]) "" (lines node)
@@ -89,20 +91,20 @@ compileTimeExpr = many $ try $ do
 compileTimeExprNonSharp = macDef <|> include <|> require <|> shebang
 
 shebang :: Parser MacCxtNode
-shebang = try $ pure Shebang
-                <*> ( char '!' >> skipMany (oneOf " \t") >> many1 (noneOf " \t\n") )
+shebang = try $ Shebang
+                <$> ( char '!' >> skipMany (oneOf " \t") >> many1 (noneOf " \t\n") )
                 <*> ( skipMany (oneOf " \t") >> many (noneOf "\n"))
 
 include :: Parser MacCxtNode
-include = try $ pure Include <*> ( skipSpaces >> string "include" >> skipSpaces >> many1 (noneOf " \t\n"))
+include = try $ Include <$> ( skipSpaces >> string "include" >> skipSpaces >> many1 (noneOf " \t\n"))
 
 require :: Parser MacCxtNode
-require = try $ pure Require <*> ( skipSpaces >> string "require" >> skipSpaces >> many1 (noneOf " \t\n"))
+require = try $ Require <$> ( skipSpaces >> string "require" >> skipSpaces >> many1 (noneOf " \t\n"))
 
 macDef :: Parser MacCxtNode
 macDef = macDef1 <?> "macro defination"
-       where macDef1 = try $ pure (\(id, params) sig defi end -> MacDef1MNode id sig params defi)
-                             <*> ( skipSpaces >> string "["
+       where macDef1 = try $ (\(id, params) sig defi end -> MacDef1MNode id sig params defi)
+                             <$> ( skipSpaces >> string "["
                                 >> skipSpaces >> idAndParams )
                              <*> ( requireSpaces >> string ":"
                                 >> requireSpaces >> macSig )
@@ -115,8 +117,8 @@ macDef = macDef1 <?> "macro defination"
                     where macSig' = try $ do
                                   -- toplevel の名前は '*'
                                   cxt <- string "*" <|> symbol
-                                  (try $ pure (\list -> cxt:list)
-                                         <*> (requireSpaces >> string "->" >> requireSpaces >> macSig'))
+                                  (try $ (\list -> cxt:list)
+                                         <$> (requireSpaces >> string "->" >> requireSpaces >> macSig'))
                                     <|> return [cxt]
 
              idAndParams :: Parser (Identifier, MacParams)
@@ -124,30 +126,29 @@ macDef = macDef1 <?> "macro defination"
                          where brackets = bracket "(" ")" <|>
                                           bracket "[" "]" <|>
                                           bracket "{" "}"
-                               bracket beg end = try $ pure (\beg param end -> (beg, [param]))
-                                                       <*> (string beg)
+                               bracket beg end = try $ (\beg param end -> (beg, [param]))
+                                                       <$> (string beg)
                                                        <*> (skipSpaces >> symbol)
                                                        <*> (skipSpaces >> (string end))
-                               infixOpList = [ pure (++) <*> string ":" <*> mark
+                               infixOpList = [ (++) <$> string ":" <*> mark
                                              , string "=>"
                                              , string "->"
                                              , string ","
                                              , string ";"
                                              ]
-                               infixOp = foldl (\x y -> x <|> y)
+                               infixOp = foldl (<|>)
                                                (head infixOpList)
                                                (tail infixOpList)
-                               infixMacDef = try $ pure (\param1 id param2 params -> (id, (param1:param2:params)))
-                                                   <*> symbol
+                               infixMacDef = try $ (\param1 id param2 -> (id, [param1, param2]))
+                                                   <$> symbol
                                                    <*> (skipSpaces >> infixOp)
                                                    <*> (skipSpaces >> symbol)
-                                                   <*> (many (try $ requireSpaces >> symbol))
-                               prefixMacDef = try $ pure (\id params -> (id, params))
-                                                    <*> symbol
+                               prefixMacDef = try $ (\id params -> (id, params))
+                                                    <$> symbol
                                                     <*> many (try $ requireSpaces >> symbol)
-                               suffixMacDef = try $ pure (\params id -> (id, params))
-                                                    <*> many1 symbol
-                                                    <*> (skipSpaces >> (pure (++) <*> string "@" <*> mark))
+                               suffixMacDef = try $ (\params id -> (id, params))
+                                                    <$> many1 symbol
+                                                    <*> (skipSpaces >> ((++) <$> string "@" <*> mark))
 
 ----------------------------------------
 -- Runtime Expression
@@ -163,34 +164,40 @@ runTimeExpr = do { skipSpaces
 -- もっとも優先順位の低い中置関数。
 -- a; b; c は a ; (b ; c) のように右に再帰する。
 -- semicolon-expression:
---   funcall-expression; semicolon-expression
---   funcall-expression
+--   coloninfix-expression; semicolon-expression
+--   coloninfix-expression
 semicolon :: Parser Node
-semicolon = try semicolon' <|> funcall <?> "semicolon-expression"
-          where semicolon' = pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
-                           <*> funcall
+semicolon = try semicolon' <|> coloninfix <?> "semicolon-expression"
+          where semicolon' = (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
+                           <$> coloninfix
                            <*> (skipSpaces >> string ";")
                            <*> (skipSpaces >> semicolon)
 
+-- coloninfix-expression:
+--   coloninfix-expression :identifier funcall-expression
+--   funcall-expression
+coloninfix :: Parser Node
+coloninfix = coloninfix' <?> "coloninfix-expression"
+           where infixOp = do { skipSpaces
+                              ; x <- ((++) <$> string ":" <*> mark)
+                              ; skipSpaces
+                              ; return (FuncallNode . (FuncallNode . SymNode) x)
+                              }
+                 coloninfix' = try $ do
+                             expr <- funcall
+                             exprs <- many (try $ flip <$> infixOp <*> (skipSpaces >> funcall))
+                             return $ foldl (\a b -> b a) expr exprs
+
 -- funcall-expression:
 --   funcall-expression arrow-expression
---   funcall-expression :identifier arrow-expression
---   funcall-expression @identifier
 --   arrow-expression
 funcall :: Parser Node
 funcall = funcall' <?> "funcall-expression"
         where prefixOp = requireSpaces >> return FuncallNode
-              infixOp = try $ pure (\id a -> FuncallNode (FuncallNode (SymNode id) a))
-                              <*> (skipSpaces >> (pure (++) <*> string ":" <*> mark))
-              suffixOp = try $ pure (\id -> FuncallNode (SymNode id))
-                               <*> (skipSpaces >> (pure (++) <*> string "@" <*> mark))
               funcall' = try $ do
-                       expr1 <- arrow
-                       sfxes <- many ((try $ pure (\op expr2 node -> op node expr2)
-                                             <*> (infixOp <|> prefixOp)
-                                             <*> (skipSpaces >> arrow))
-                                  <|> (try suffixOp))
-                       return $ foldl (\expr sfx -> sfx expr) expr1 sfxes
+                       expr <- arrow
+                       exprs <- many (try $ flip <$> prefixOp <*> (skipSpaces >> arrow))
+                       return $ foldl (\a b -> b a) expr exprs
 
 
 -- arrow-expression:
@@ -200,8 +207,8 @@ funcall = funcall' <?> "funcall-expression"
 --   primary-expression
 arrow :: Parser Node
 arrow = arrow' <|> prim <?> "arrow-expression"
-      where arrow' = try $ pure (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
-                           <*> prim
+      where arrow' = try $ (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
+                           <$> prim
                            <*> (skipSpaces >> arrowMark)
                            <*> (skipSpaces >> funcall)
 
@@ -246,12 +253,12 @@ prim = bracket <|> exclamExpr <|> strLit <|> charLit <|> id <|> num
              (string beg >> return (beg, end)) <|> bracketBeg' brackets
 
            id :: Parser Node
-           id = pure SymNode <*> try symbol
+           id = SymNode <$> try symbol
 
            strLit :: Parser Node
            strLit = do
                   str <- str'
-                  return $ foldr (\ch str -> ConsNode ch str) NilNode str
+                  return $ foldr ConsNode NilNode str
                   where char' :: Parser Node
                         char' = liftM CharNode (try (string "\\\"" >> return '"')
                                              <|> noneOf ['"'])
@@ -290,68 +297,74 @@ symbol = symbol' <?> "symbol"
                                        ; last <- symbolEnd1
                                        ; return (lett:last)
                                        })
-                             <|> try (pure (\lett -> [lett]) <*> endLetter)
+                             <|> try ((\lett -> [lett]) <$> endLetter)
 
 exclamExpr :: Parser Node
 exclamExpr = try $ string "!" >> ( excIf <|> excLambda <|> excDefine <|>
                                    excFuncall <|> excPrint <|> excCons <|>
-                                   excCar <|> excCdr <|> excDo <|> excNative )
+                                   excCar <|> excCdr <|> excDo <|> excNative
+                                   <|> excEqual )
             where excIf :: Parser Node
-                  excIf = pure IfNode
-                          <*> (try $ string "if" >> requireSpaces >> parseExpr)
+                  excIf = IfNode
+                          <$> (try $ string "if" >> requireSpaces >> parseExpr)
                           <*> (skipSpaces >> parseExpr)
                           <*> (skipSpaces >> parseExpr)
 
                   excLambda :: Parser Node
-                  excLambda = pure LambdaNode
-                              <*> (try $ string "lambda" >> requireSpaces >> symbol)
+                  excLambda = LambdaNode
+                              <$> (try $ string "lambda" >> requireSpaces >> symbol)
                               <*> (skipSpaces >> parseExpr)
 
                   excDefine :: Parser Node
-                  excDefine = pure DefineNode
-                              <*> (try $ string "define" >> requireSpaces >> symbol)
+                  excDefine = DefineNode
+                              <$> (try $ string "define" >> requireSpaces >> symbol)
                               <*> (skipSpaces >> parseExpr)
 
                   excFuncall :: Parser Node
-                  excFuncall = pure FuncallNode
-                               <*> (try $ string "funcall" >> requireSpaces >> parseExpr)
+                  excFuncall = FuncallNode
+                               <$> (try $ string "funcall" >> requireSpaces >> parseExpr)
                                <*> (skipSpaces >> parseExpr)
 
                   excPrint :: Parser Node
-                  excPrint = pure PrintNode
-                             <*> (try $ string "print" >> requireSpaces >> parseExpr)
+                  excPrint = PrintNode
+                             <$> (try $ string "print" >> requireSpaces >> parseExpr)
 
                   excCons :: Parser Node
-                  excCons = pure ConsNode
-                            <*> (try $ string "cons" >> requireSpaces >> parseExpr)
+                  excCons = ConsNode
+                            <$> (try $ string "cons" >> requireSpaces >> parseExpr)
                             <*> (requireSpaces >> parseExpr)
 
                   excCar :: Parser Node
-                  excCar = pure CarNode
-                           <*> (try $ string "car" >> requireSpaces >> parseExpr)
+                  excCar = CarNode
+                           <$> (try $ string "car" >> requireSpaces >> parseExpr)
 
                   excCdr :: Parser Node
-                  excCdr = pure CdrNode
-                           <*> (try $ string "cdr" >> requireSpaces >> parseExpr)
+                  excCdr = CdrNode
+                           <$> (try $ string "cdr" >> requireSpaces >> parseExpr)
 
                   excDo :: Parser Node
-                  excDo = pure DoNode
-                          <*> (try $ string "do" >> requireSpaces >> parseExpr)
+                  excDo = DoNode
+                          <$> (try $ string "do" >> requireSpaces >> parseExpr)
                           <*> (requireSpaces >> parseExpr)
 
                   -- nativeはIntのidで指定する
                   excNative :: Parser Node
-                  excNative = pure NativeNode
-                              <*> (try $ string "native" >> requireSpaces >> nativeId)
+                  excNative = NativeNode
+                              <$> (try $ string "native" >> requireSpaces >> nativeId)
                             where idList = ["1001", "1002"]
-                                  accept id = try $ pure read <*> string id
+                                  accept id = try $ read <$> string id
                                   nativeId = foldl (\x id -> x <|> accept id)
                                                    (accept $ head idList)
                                                    (tail idList) <?> "native id"
 
+                  excEqual :: Parser Node
+                  excEqual = EqualNode
+                            <$> (try $ string "equal" >> requireSpaces >> parseExpr)
+                            <*> (requireSpaces >> parseExpr)
+
 
                   parseExpr :: Parser Node
-                  parseExpr = arrow <?> "a expression"
+                  parseExpr = prim <?> "a expression"
 
 
 skipComment :: Parser ()

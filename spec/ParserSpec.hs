@@ -27,6 +27,31 @@ spec = do
 
   describe "Macra.Parser" $ do
 
+    describe "Coloninfix" $ do
+
+      it "左再帰" $ do
+        cmpNode "list :inject 0 :into fn"
+          (f (f (q ":into")
+                (f (f (q ":inject")
+                      (q "list"))
+                   (n 0)))
+             (q "fn"))
+
+      it "左右の引数は共に funcall expression" $ do
+        cmpNode "f x :and g y" $ do
+          (f (f (q ":and")
+                (f (q "f") (q "x")))
+             (f (q "g") (q "y")))
+
+
+      it "左再帰で、左右の引数は共に funcall expression" $ do
+        cmpNode "f x :or g y :and h z" $ do
+          (f (f (q ":and")
+                (f (f (q ":or")
+                      (f (q "f") (q "x")))
+                   (f (q "g") (q "y"))))
+             (f (q "h") (q "z")))
+
     describe "Equal Arrow" $ do
 
       it "x と a を引数とする関数呼び出し" $ do

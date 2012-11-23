@@ -1,0 +1,6 @@
+#[ a; b : * -> * -> * = !do a b ]
+#[ then :else expr : ifThen -> * -> *      = !funcall then !lambda nil expr               ]
+#[ cond :then expr : *      -> * -> ifThen = !lambda else !if cond expr !funcall else nil ]
+
+0 :then !print "0 is true" :else !print "0 is false";
+nil :then !print "nil is true" :else !print "nil is false"
