@@ -1,0 +1,8 @@
+#include prelude.macra
+
+def map f, xs =>
+  if (not xs)
+      xs
+      [f (car xs) :cons map f (cdr xs)]
+
+; map { x => puts x } [1, 2, 3, nil]

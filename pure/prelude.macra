@@ -35,11 +35,3 @@
 #[ x :cons xs : * -> *    -> list = !cons x xs ]
 #[ a, b       : * -> list -> list = !cons a b  ]
 #[ a; b       : * -> list -> list = !cons a b  ]
-
-def map f, xs =>
-  if (not xs)
-      xs
-      [f (car xs) :cons (map f (cdr xs))]
-
-; map { x => puts x } [1, 2, 3, nil]
-; def flip f, x, y => f y x
