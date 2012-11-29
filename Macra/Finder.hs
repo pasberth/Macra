@@ -25,7 +25,7 @@ doesLibExist fname = getMacraLib >>= doesLibExist' fname
              then return True
              else doesLibExist' fname paths
 
--- MACRALIB にファイルが存在するなら偽
+-- MACRALIB にファイルが存在するならそのファイルの絶対パスを返す
 findLib :: FilePath -> IO FilePath
 findLib fname = getMacraLib >>= findLib' fname
   where  findLib' fname [] = error ("no such file or directory: " ++ fname)
