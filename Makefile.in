@@ -4,4 +4,5 @@ compile:
 	ghc Main.hs -o bin/macra
 
 install:
-	install -s bin/macra $(prefix)
+	mkdir $(prefix)/bin
+	install -s bin/macra $(prefix)/bin
