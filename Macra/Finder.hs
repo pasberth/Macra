@@ -17,22 +17,25 @@ getMacraLib = do {
 ; return $ splitOn ":" str
 } `catch` (\_ -> return [])
 
+-- MACRALIB を探索する
+-- もし fname が見つかれば f に絶対パスを与え、それを返す
+-- 見つからなければ x を返す。
+searchLib :: a -> (FilePath -> a) -> FilePath -> IO a
+searchLib x f fname = getMacraLib >>= searchLib' x f fname
+  where searchLib' x f fname [] = return x
+        searchLib' x f fname (path:paths) = do
+          let target = joinPath [path, fname]
+          isExist <- doesFileExist target
+          if isExist
+            then return $ f target
+            else searchLib' x f fname paths
+
 -- MACRALIB にファイルが存在するなら真
 doesLibExist :: FilePath -> IO Bool
-doesLibExist fname = getMacraLib >>= doesLibExist' fname
-  where  doesLibExist' fname [] = return False
-         doesLibExist' fname (path:paths) = do
-           isExist <- doesFileExist (joinPath [path, fname])
-           if isExist
-             then return True
-             else doesLibExist' fname paths
+doesLibExist fname = searchLib False (\path -> True) fname
 
 -- MACRALIB にファイルが存在するならそのファイルの絶対パスを返す
 findLib :: FilePath -> IO FilePath
-findLib fname = getMacraLib >>= findLib' fname
-  where  findLib' fname [] = error ("no such file or directory: " ++ fname)
-         findLib' fname (path:paths) = do
-           isExist <- doesFileExist (joinPath [path, fname])
-           if isExist
-             then return (joinPath [path, fname])
-             else findLib' fname paths
+findLib fname = searchLib (error ("no such file or directory: " ++ fname))
+                          (\path -> path)
+                          fname
