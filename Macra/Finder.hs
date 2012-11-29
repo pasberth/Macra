@@ -24,3 +24,13 @@ doesLibExist fname = getMacraLib >>= doesLibExist' fname
            if isExist
              then return True
              else doesLibExist' fname paths
+
+-- MACRALIB にファイルが存在するなら偽
+findLib :: FilePath -> IO FilePath
+findLib fname = getMacraLib >>= findLib' fname
+  where  findLib' fname [] = error ("no such file or directory: " ++ fname)
+         findLib' fname (path:paths) = do
+           isExist <- doesFileExist (joinPath [path, fname])
+           if isExist
+             then return (joinPath [path, fname])
+             else findLib' fname paths
