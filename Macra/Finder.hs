@@ -1,4 +1,6 @@
-module Macra.Finder (doesLibExist) where
+module Macra.Finder ( getMacraLib,
+                      doesLibExist,
+                      findLib ) where
 
 -- import Control.Exception
 import System.Environment
