@@ -7,7 +7,7 @@ class Macra < Formula
   homepage ''
   url "https://nodeload.github.com/pasberth/Macra/tar.gz/Formula4Homebrew"
   version '0.0.1'
-  sha1 'b7836934f0dee3f0bf5f686424c567b151840d1f'
+  sha1 '65f88be9d17b43848d6e9ee79fc85b42e738941b'
 
   depends_on :autoconf # if build.head?
   depends_on 'ghc'
@@ -23,6 +23,7 @@ class Macra < Formula
     # system "cmake", ".", *std_cmake_args
     system "make compile"
     system "make install" # if this fails, try separate make/make install steps
+    ENV.prepend 'PATH', prefix/'bin', ':'
   end
 
   def test
