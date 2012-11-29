@@ -9,12 +9,14 @@ class Macra < Formula
   version '0.0.1'
   sha1 'b7836934f0dee3f0bf5f686424c567b151840d1f'
 
+  depends_on :autoconf # if build.head?
+  depends_on 'ghc'
   # depends_on 'cmake' => :build
   # depends_on :x11 # if your formula requires any X11/XQuartz components
 
   def install
     # ENV.j1  # if your formula's build system can't parallelize
-    system "autoconf" if build.head?
+    system "autoconf" # if build.head?
 
     system "./configure", # "--disable-debug", "--disable-dependency-tracking",
                           "--prefix=#{prefix}"
