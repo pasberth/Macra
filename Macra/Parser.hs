@@ -1,7 +1,7 @@
 module Macra.Parser (runTimeExpr,
                      compileTimeExpr,
                      Identifier(..),
-                     MacCxtNode(..),
+                     CNode(..),
                      Node(..),
                      CxtId,
                      MacSig,
@@ -18,22 +18,20 @@ type Identifier = String
 
 -- マクロ定義や、将来追加されるかもしれない
 -- #include など、 `#' から始まるコンパイル時の命令
-data MacCxtNode -- 普通のマクロ定義。
-                -- #[ m a : t -> u = a ]
-                = MacDef1MNode Identifier MacSig MacParams Node
-                -- #!/usr/bin/env macra -opt
-                -- であれば、 "/usr/bin/env" が FilePath 、 "macra -opt" が String となる
-                -- 通常は使用しないだろう、いちおうパースして使用できるようにしておく
-                | Shebang FilePath String
-                -- # include prelude.macra
-                -- `#' と include の間に空白はあってもなくてもいい。
-                -- 拡張子は省略不可能。
-                -- もし https://github.com/pasberth/Macra/issues/40 で拡張子に意味を持たせるなら、
-                -- .macra だけ省略できるというのは不自然
-                | Include FilePath
-                -- # require prelude.macra
-                | Require FilePath
-                deriving (Show, Eq)
+-- `#' と include の間に空白はあってもなくてもいい。
+-- CompiletimeNode
+data CNode -- 普通のマクロ定義。
+           -- #[ m a : t -> u = a ]
+           = MacDefCNode Identifier MacSig MacParams Node
+           -- #!/usr/bin/env macra -opt
+           -- であれば、 "/usr/bin/env" が FilePath 、 "macra -opt" が String となる
+           -- 通常は使用しないだろう、いちおうパースして使用できるようにしておく
+           | ShebangCNode FilePath String
+           -- # include prelude.macra
+           | IncludeCNode FilePath
+           -- # require prelude.macra
+           | RequireCNode FilePath
+           deriving (Show, Eq)
 
 type CxtId = String              -- マクロのコンテキストのid
 type MacSig = [CxtId]            -- マクロのシグネチャ
@@ -81,8 +79,8 @@ indent2 node = indent "  " node
 ----------------------------------------
 -- Compile Time Statements
 ----------------------------------------
-compileTimeExpr :: Parser [MacCxtNode]
-compileTimeExpr = many $ try $ do
+compileTimeExpr :: Parser CNode
+compileTimeExpr = try $ do
                     skipProgram
                     string "#"
                     compileTimeExprNonSharp
@@ -90,27 +88,27 @@ compileTimeExpr = many $ try $ do
 
 compileTimeExprNonSharp = macDef <|> include <|> require <|> shebang
 
-shebang :: Parser MacCxtNode
-shebang = try $ Shebang
+shebang :: Parser CNode
+shebang = try $ ShebangCNode
                 <$> ( char '!' >> skipMany (oneOf " \t") >> many1 (noneOf " \t\n") )
                 <*> ( skipMany (oneOf " \t") >> many (noneOf "\n"))
 
-include :: Parser MacCxtNode
-include = try $ Include <$> ( skipSpaces >> string "include" >> skipSpaces >> many1 (noneOf " \t\n"))
+include :: Parser CNode
+include = try $ IncludeCNode <$> ( skipSpaces >> string "include" >> skipSpaces >> many1 (noneOf " \t\n"))
 
-require :: Parser MacCxtNode
-require = try $ Require <$> ( skipSpaces >> string "require" >> skipSpaces >> many1 (noneOf " \t\n"))
+require :: Parser CNode
+require = try $ RequireCNode <$> ( skipSpaces >> string "require" >> skipSpaces >> many1 (noneOf " \t\n"))
 
-macDef :: Parser MacCxtNode
-macDef = macDef1 <?> "macro defination"
-       where macDef1 = try $ (\(id, params) sig defi end -> MacDef1MNode id sig params defi)
-                             <$> ( skipSpaces >> string "["
-                                >> skipSpaces >> idAndParams )
-                             <*> ( requireSpaces >> string ":"
-                                >> requireSpaces >> macSig )
-                             <*> ( requireSpaces >> string "="
-                                >> requireSpaces >> semicolon )
-                             <*> (skipSpaces >> string "]")
+macDef :: Parser CNode
+macDef = macDef <?> "macro defination"
+       where macDef = try $ (\(id, params) sig defi end -> MacDefCNode id sig params defi)
+                            <$> ( skipSpaces >> string "["
+                               >> skipSpaces >> idAndParams )
+                            <*> ( requireSpaces >> string ":"
+                               >> requireSpaces >> macSig )
+                            <*> ( requireSpaces >> string "="
+                               >> requireSpaces >> semicolon )
+                            <*> (skipSpaces >> string "]")
 
              macSig :: Parser MacSig
              macSig = macSig' <?> "signature"
