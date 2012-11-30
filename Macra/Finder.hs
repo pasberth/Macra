@@ -18,17 +18,27 @@ getMacraLib = do {
 } `catch` (\_ -> return [])
 
 -- MACRALIB を探索する
--- もし fname が見つかれば f に絶対パスを与え、それを返す
--- 見つからなければ x を返す。
 searchLib :: a -> (FilePath -> a) -> FilePath -> IO a
 searchLib x f fname = getMacraLib >>= searchLib' x f fname
-  where searchLib' x f fname [] = return x
+  where -- 見つからなければ x を返す。
+        searchLib' x f fname [] = return x
+        -- もし fname が見つかれば f に fname の 絶対パスを与え、それを返す
         searchLib' x f fname (path:paths) = do
           let target = joinPath [path, fname]
           isExist <- doesFileExist target
           if isExist
             then return $ f target
-            else searchLib' x f fname paths
+            else putMacraExt x f fname (path:paths)
+        -- fname が見つからず、もし fname.macra が存在するなら f に fname.macra の絶対パスを与え、それを返す
+        putMacraExt x f fname (path:paths)
+          -- ただし、 fname がもともと .macra の拡張子であればこの手順はスキップする
+          | takeExtension fname == ".macra" = searchLib' x f fname paths
+          | otherwise = do
+            let target = addExtension (joinPath [path, fname]) "macra"
+            isExist <- doesFileExist target
+            if isExist
+              then return $ f target
+              else searchLib' x f fname paths
 
 -- MACRALIB にファイルが存在するなら真
 doesLibExist :: FilePath -> IO Bool

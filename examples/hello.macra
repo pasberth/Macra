@@ -2,6 +2,6 @@
   The hello world program.
 ----------------------------
 
-#include prelude.macra
+#include prelude
 
 puts "hello world"
