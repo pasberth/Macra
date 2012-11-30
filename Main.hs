@@ -40,7 +40,7 @@ main = do
                Right expr -> do
                  r <- mkMacroMap x
                  case r of
-                   Right mm -> print $ compile mm expr
+                   Right mm -> print $ compile mm expr >>= (\inst -> return $ optimize inst)
                    Left err -> print err
     path:xs -> execFile path
 
@@ -61,5 +61,5 @@ execFile path = do
                                      case compile mm node of
                                        Right inst -> execInst inst
                                        Left err -> print err
-      execInst inst = vm inst
+      execInst inst = vm $ optimize inst
   parseCompileTimeExpr

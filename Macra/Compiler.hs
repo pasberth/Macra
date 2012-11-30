@@ -1,6 +1,7 @@
 module Macra.Compiler (MacroMap,
                        mkMacroMap,
                        compile,
+                       optimize,
                        macroExpand,
                        emptyMacroMap) where
 
@@ -247,3 +248,10 @@ compileNode (CdrNode node) next = compileNode node (CdrInst next)
 compileNode (DoNode a b) next = compileNode a (compileNode b next)
 compileNode (EqualNode a b) next = compileNode a (ArgInst (compileNode b (EqualInst next)))
 compileNode (NativeNode a) next = NativeInst a next
+
+optimize :: Inst -> Inst
+optimize (ConstExpr x (ArgInst (ConstExpr (VM.List xs) (ConsInst nxt))))
+  = optimize $ ConstExpr (VM.List (x:xs)) nxt
+optimize (ConstExpr x (ArgInst nxt))
+  = optimize $ ConstExpr x $ ArgInst $ optimize nxt
+optimize x = x
