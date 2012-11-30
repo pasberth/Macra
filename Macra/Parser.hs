@@ -79,8 +79,8 @@ indent2 node = indent "  " node
 ----------------------------------------
 -- Compile Time Statements
 ----------------------------------------
-compileTimeExpr :: Parser CNode
-compileTimeExpr = try $ do
+compileTimeExpr :: Parser [CNode]
+compileTimeExpr = many $ try $ do
                     skipProgram
                     string "#"
                     compileTimeExprNonSharp
