@@ -10,6 +10,7 @@ import Control.Applicative
 import qualified Text.ParserCombinators.Parsec as Parsec
 import Macra.Parser hiding (Identifier)
 import Macra.VM hiding (Identifier)
+import qualified Macra.Finder as F
 import qualified Macra.Parser as P
 import qualified Macra.VM as VM
 
@@ -60,8 +61,8 @@ include (x:xs) = do { result <- include xs
                       Right mm -> include' mm x
                       Left err -> return $ Left err
                     }
-               where include' mm (Include path') = do
-                       let path = "pure/" ++ path'
+               where include' mm (Include path) = do
+                       path <- F.findLib path
                        str <- readFile path
                        case Parsec.parse compileTimeExpr path str of
                          Right cnode -> mkMacroMap cnode
