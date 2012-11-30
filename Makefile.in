@@ -1,0 +1,8 @@
+prefix = @prefix@
+
+compile:
+	ghc Main.hs -o bin/macra
+
+install:
+	mkdir $(prefix)/bin
+	install -s bin/macra $(prefix)/bin
