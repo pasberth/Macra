@@ -31,6 +31,7 @@ data CNode -- 普通のマクロ定義。
            | IncludeCNode FilePath
            -- # require prelude.macra
            | RequireCNode FilePath
+           | IfoptCNode String [CNode] [CNode]
            deriving (Show, Eq)
 
 type CxtId = String              -- マクロのコンテキストのid
@@ -86,7 +87,7 @@ compileTimeExpr = many $ try $ do
                     compileTimeExprNonSharp
                  where skipProgram = skipMany $ noneOf "#"
 
-compileTimeExprNonSharp = macDef <|> include <|> require <|> shebang
+compileTimeExprNonSharp = macDef <|> include <|> require <|> shebang <|> ifopt
 
 shebang :: Parser CNode
 shebang = try $ ShebangCNode
@@ -98,6 +99,23 @@ include = try $ IncludeCNode <$> ( skipSpaces >> string "include" >> skipSpaces 
 
 require :: Parser CNode
 require = try $ RequireCNode <$> ( skipSpaces >> string "require" >> skipSpaces >> many1 (noneOf " \t\n"))
+
+ifopt :: Parser CNode
+ifopt = try $ IfoptCNode <$> (skipSpaces >> string "ifopt" >> skipSpaces >> many1 (noneOf " \t\n"))
+                         <*> compileTimeExpr
+                         <*> do { elseExprs <- try (do { skipProgram
+                                                       ; string "#"
+                                                       ; skipSpaces
+                                                       ; string "else"
+                                                       ; compileTimeExpr
+                                                       }) <|> return []
+                                ; skipProgram
+                                ; string "#"
+                                ; skipSpaces
+                                ; string "end"
+                                ; return elseExprs
+                                })
+      where skipProgram = skipMany $ noneOf "#"
 
 macDef :: Parser CNode
 macDef = macDef <?> "macro defination"
