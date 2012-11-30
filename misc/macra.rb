@@ -2,9 +2,9 @@ require 'formula'
 
 class Macra < Formula
   homepage ''
-  url "https://nodeload.github.com/pasberth/Macra/tar.gz/Formula4Homebrew"
+  url 'https://github.com/pasberth/Macra/archive/macra-0.0.1.tar.gz'
   version '0.0.1'
-  sha1 '65f88be9d17b43848d6e9ee79fc85b42e738941b'
+  sha1 'a13c66960bb9956283aade7f4c00ad2ef8270885'
 
   depends_on :autoconf
   depends_on 'ghc'
