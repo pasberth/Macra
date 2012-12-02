@@ -5,7 +5,7 @@ semicolon-expression:
 
 funcall-expression:
   funcall-expression arrow-expression
-  funcall-expression :identifier arrow-expression
+  funcall-expression :quoted-identifier arrow-expression
   arrow-expression
 
 arrow-expression:
@@ -34,6 +34,15 @@ exclam-expression:
   !do primary-expression primary-expression
 
 identifier:
+
+  symbol
+  ' quoted-identifier
+
+quoted-identifier:
+
+  non-space-characters
+
+
 
   開始に使える文字 (0-9 は使えない):
 
