@@ -6,7 +6,6 @@ semicolon-expression:
 funcall-expression:
   funcall-expression arrow-expression
   funcall-expression :identifier arrow-expression
-  funcall-expression @identifier
   arrow-expression
 
 arrow-expression:
@@ -36,8 +35,6 @@ exclam-expression:
 
 identifier:
 
-  今後変わる可能性あり。とりあえず今の実装
-
   開始に使える文字 (0-9 は使えない):
 
     /[a-zA-Z]_/
@@ -63,6 +60,15 @@ identifier:
 * hoge-
 * -fuga
 * -
+
+また、 ' id の形式で書く事で空白以外のどんな文字でも id にできる。
+
+* ' '
+* ' !
+* ' :
+
+' と id の間には空白はあってもなくてもよい。
+
 
 
 constant:
