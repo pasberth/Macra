@@ -1,5 +1,5 @@
-#[ (a)  : toplevel             -> toplevel = a       ]
-#[ a; b : toplevel -> toplevel -> toplevel = !do a b ]
+#[ (a)  : * -> *      = a       ]
+#[ a; b : * -> * -> * = !do a b ]
 
 !define true
   !lambda then

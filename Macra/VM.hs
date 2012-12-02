@@ -5,11 +5,12 @@ import qualified Data.Map as M
 import qualified Data.List as L
 import qualified Control.Monad.State as S
 
+type Identity = U.Unique
 data Value = Double Double
            | Char Char
            | List [Value]
            | Refered Value Identifier         --Pair of value and the refered key, used in thaw
-           | Closure Identifier Inst   EnvRef
+           | Closure Identifier Inst   EnvRef Identity
            | Thunk   Inst              EnvRef
            deriving (Eq, Ord)
 
@@ -17,7 +18,7 @@ instance Show Value where
   show (Char c) = [c]
   show (Double i) = show i
   show (List xs) = concat ["(", concat (L.intersperse " " (map show xs)), ")"]
-  show (Closure var body e) = concat [show "Close: ", show var, show body]
+  show (Closure var body _ _) = concat [show "Close: ", show var, show body]
   show (Thunk body e) = show body
   show (Refered val idf) = concat [show idf, show ":", show val]
 
@@ -38,7 +39,8 @@ data Inst = FrameInst  Inst       Inst           --hasnext
           | DefineInst Identifier Inst           --hasnext
           | HaltInst
           | PrintInst  Inst                      --hasnext
-          | NativeInst Integer Inst                  --hasnext
+          | NativeInst Integer Inst              --hasnext
+          | EqualInst  Inst                      --hasnext
           -- | NativeCallInst TwoArgFn Inst         --hasnext
           deriving (Show, Eq, Ord)
 
@@ -79,6 +81,19 @@ lookupVal id envRef mem =
 
 nil :: Value
 nil = List []
+
+true :: Value
+true = Double 0
+
+false :: Value
+false = nil
+
+equals :: Value -> Value -> Value
+-- closure の 同値性比較
+equals (Closure _ _ _ aIdentity) (Closure _ _ _ bIdentity) = if aIdentity == bIdentity then true else false
+-- どちらか一方でも closure 以外なら単に == で比較
+equals a b = if a == b then true else false
+
 
 nativeFunction nativeId =
   -- nativeIdは1から始まる4桁の数字とする。(なんとなく)
@@ -203,7 +218,7 @@ vm'' vmState@(VM a (ArgInst nxt) e r s _) = do
 -- ApplyInst applies a Closure to an argument
 vm'' vmState@(VM a ApplyInst _ (val:r) s mem) = do
       case a of
-        (Closure var body envRef) -> do
+        (Closure var body envRef _) -> do
           closedEnvRef <- S.lift U.newUnique
           S.put vmState {
                 vmEnvRef = closedEnvRef
@@ -271,8 +286,9 @@ vm'' vmState@(VM a (TestInst thenExp elseExp) e r s mem)
              }
        vm'
 vm'' vmState@(VM a (CloseInst var body nxt) envRef r s mem) = do
+        identity <- S.lift U.newUnique
         S.put vmState {
-              vmAcc = Closure var body envRef
+              vmAcc = Closure var body envRef identity
             , vmInst = nxt
               }
         vm'
@@ -291,6 +307,14 @@ vm'' vmState@(VM _ (NativeInst nativeId nxt) e ((Thunk (ConstExpr  (Double x) _)
             vmInst = CloseInst "x" (CloseInst "y" (ConstExpr ((nativeFunction nativeId) x y) ReturnInst) ReturnInst) nxt
         }
         vm'
+
+vm'' vmState@(VM a (EqualInst nxt) _ (b:r) _ _) = do
+       S.put vmState {
+             vmAcc = equals a b
+           , vmRib = r
+           , vmInst = nxt
+                  }
+       vm'
 
 vm'' vmState = do
      S.liftIO $ do

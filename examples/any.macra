@@ -1,6 +1,6 @@
-#[ any a : other    -> toplevel       = a ]
-#[ {a}   : other    -> other          = a ]
-#[ a; b  : toplevel -> other -> other = !lambda nil !if nil nil b a ]
+#[ any a : other          -> *           = a ]
+#[ {a}   : other          -> other       = a ]
+#[ a; b  : *     -> other -> other = !lambda nil !if nil nil b a ]
 
 ------------------------------------
   any { a; b; c } の形式で呼ぶ。

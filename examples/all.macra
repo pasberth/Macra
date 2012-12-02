@@ -1,7 +1,7 @@
-#[ all a : allExpr             -> toplevel = a ]
-#[ {a}   : allExpr             -> allExpr  = a ]
-#[ a; b  : toplevel -> allExpr -> allExpr  = !lambda _ !if _ b nil a ]
-#[ end   :                        allExpr  = _ ]
+#[ all a : allExpr            -> *        = a ]
+#[ {a}   : allExpr            -> allExpr  = a ]
+#[ a; b  : *       -> allExpr -> allExpr  = !lambda _ !if _ b nil a ]
+#[ end   :                       allExpr  = _ ]
 
 -----------------------------------
 

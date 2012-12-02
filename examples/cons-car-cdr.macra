@@ -1,5 +1,4 @@
-#[ a; b : toplevel -> toplevel -> toplevel
-        = !do a b ]
+#[ a; b : * -> * -> * = !do a b ]
 
 !define cons
    !lambda head
