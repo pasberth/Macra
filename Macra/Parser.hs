@@ -293,10 +293,7 @@ symbol = symbol' <?> "symbol"
              containLetter = letter <|> digit <|> oneOf "-_"  -- シンボルに含める文字。 abc の b
              endLetter     = letter <|> digit <|> oneOf "_"   -- シンボルの終わりに含める文字。 abc の c
              symbolEnd     = symbolEnd1 <|> return []
-             symbolEnd1    = (try $ do { lett <- containLetter
-                                       ; last <- symbolEnd1
-                                       ; return (lett:last)
-                                       })
+             symbolEnd1    = try ((:) <$> containLetter <*> symbolEnd1)
                              <|> try ((\lett -> [lett]) <$> endLetter)
 
 exclamExpr :: Parser Node
