@@ -114,7 +114,7 @@ ifopt = try $ IfoptCNode <$> (skipSpaces >> string "ifopt" >> skipSpaces >> many
                                 ; skipSpaces
                                 ; string "end"
                                 ; return elseExprs
-                                })
+                                }
       where skipProgram = skipMany $ noneOf "#"
 
 macDef :: Parser CNode
