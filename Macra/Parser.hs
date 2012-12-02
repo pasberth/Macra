@@ -133,12 +133,12 @@ macDef = macDef <?> "macro defination"
                     where macSig' = try $ do
                                   -- toplevel の名前は '*'
                                   cxt <- string "*" <|> symbol
-                                  (try $ (\list -> cxt:list)
+                                  (try $ (cxt:)
                                          <$> (requireSpaces >> string "->" >> requireSpaces >> macSig'))
                                     <|> return [cxt]
 
              idAndParams :: Parser (Identifier, MacParams)
-             idAndParams = brackets <|> infixMacDef <|> prefixMacDef <|> suffixMacDef
+             idAndParams = brackets <|> infixMacDef <|> prefixMacDef
                          where brackets = bracket "(" ")" <|>
                                           bracket "[" "]" <|>
                                           bracket "{" "}"
@@ -146,7 +146,7 @@ macDef = macDef <?> "macro defination"
                                                        <$> (string beg)
                                                        <*> (skipSpaces >> symbol)
                                                        <*> (skipSpaces >> (string end))
-                               infixOpList = [ (++) <$> string ":" <*> mark
+                               infixOpList = [ (++) <$> string ":" <*> quotedSymbol
                                              , string "=>"
                                              , string "->"
                                              , string ","
@@ -159,12 +159,9 @@ macDef = macDef <?> "macro defination"
                                                    <$> symbol
                                                    <*> (skipSpaces >> infixOp)
                                                    <*> (skipSpaces >> symbol)
-                               prefixMacDef = try $ (\id params -> (id, params))
+                               prefixMacDef = try $ (,)
                                                     <$> symbol
                                                     <*> many (try $ requireSpaces >> symbol)
-                               suffixMacDef = try $ (\params id -> (id, params))
-                                                    <$> many1 symbol
-                                                    <*> (skipSpaces >> ((++) <$> string "@" <*> mark))
 
 ----------------------------------------
 -- Runtime Expression
@@ -195,7 +192,7 @@ semicolon = try semicolon' <|> coloninfix <?> "semicolon-expression"
 coloninfix :: Parser Node
 coloninfix = coloninfix' <?> "coloninfix-expression"
            where infixOp = do { skipSpaces
-                              ; x <- ((++) <$> string ":" <*> mark)
+                              ; x <- ((++) <$> string ":" <*> quotedSymbol)
                               ; skipSpaces
                               ; return (FuncallNode . (FuncallNode . SymNode) x)
                               }
@@ -292,28 +289,20 @@ prim = bracket <|> exclamExpr <|> strLit <|> charLit <|> id <|> num
                           float <- (char '.' >> many1 digit) <|> return "0"
                           return $ NumNode $ read $ concat [[sign], int, ".", float]
 
--- hoge :<> fuga とかの構文で使える記号の id
---   使える記号はまだ仕様が曖昧なので
---   ruby -e 'puts [*33..47, *58..64, *91..96, *123..126].map(&:chr).join'
--- で出力したものを使えるようにしてる。
-mark :: Parser Identifier
-mark = mark' <|> symbol
-     where mark' = many1 letter
-           letter = oneOf "!\"#$%&'()*+,-./;<=>?@[\\]^_`{|}~"
-
-
 symbol :: Parser Identifier
-symbol = symbol' <?> "symbol"
-       where symbol'       = try (pure (\beg end -> beg:end)) <*> beginLetter <*> symbolEnd
+symbol = (string "'" >> skipSpaces >> quotedSymbol)
+         <|> symbol' <?> "symbol"
+       where symbol'       = try ((:) <$> beginLetter <*> symbolEnd)
              beginLetter   = letter <|> oneOf "_"             -- シンボルの開始として許される文字。 abc の a
              containLetter = letter <|> digit <|> oneOf "-_"  -- シンボルに含める文字。 abc の b
              endLetter     = letter <|> digit <|> oneOf "_"   -- シンボルの終わりに含める文字。 abc の c
              symbolEnd     = symbolEnd1 <|> return []
-             symbolEnd1    = (try $ do { lett <- containLetter
-                                       ; last <- symbolEnd1
-                                       ; return (lett:last)
-                                       })
+             symbolEnd1    = try ((:) <$> containLetter <*> symbolEnd1)
                              <|> try ((\lett -> [lett]) <$> endLetter)
+
+quotedSymbol :: Parser Identifier
+quotedSymbol = quotedSymbol' <?> "quoted symbol"
+             where quotedSymbol' = many1 (noneOf " \t\n")
 
 exclamExpr :: Parser Node
 exclamExpr = try $ string "!" >> ( excIf <|> excLambda <|> excDefine <|>
