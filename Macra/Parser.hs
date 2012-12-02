@@ -143,10 +143,10 @@ macDef = macDef1 <?> "macro defination"
                                                    <$> symbol
                                                    <*> (skipSpaces >> infixOp)
                                                    <*> (skipSpaces >> symbol)
-                               prefixMacDef = try $ (\id params -> (id, params))
+                               prefixMacDef = try $ (,)
                                                     <$> symbol
                                                     <*> many (try $ requireSpaces >> symbol)
-                               suffixMacDef = try $ (\params id -> (id, params))
+                               suffixMacDef = try $ (flip (,))
                                                     <$> many1 symbol
                                                     <*> (skipSpaces >> ((++) <$> string "@" <*> mark))
 
