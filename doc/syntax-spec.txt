@@ -23,15 +23,15 @@ primary-expression:
   constant
 
 exclam-expression:
-  !if arrow-expression arrow-expression
-  !lambda identifier arrow-expression
-  !define identidier arrow-expression
-  !funcall arrow-expression arrow-expression
-  !print arrow-expression
-  !cons arrow-expression arrow-expression
-  !car arrow-expression
-  !cdr arrow-expression
-  !do arrow-expression arrow-expression
+  !if primary-expression primary-expression
+  !lambda identifier primary-expression
+  !define identifier primary-expression
+  !funcall primary-expression primary-expression
+  !print primary-expression
+  !cons primary-expression primary-expression
+  !car primary-expression
+  !cdr primary-expression
+  !do primary-expression primary-expression
 
 identifier:
 
