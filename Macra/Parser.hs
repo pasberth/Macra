@@ -117,7 +117,7 @@ macDef = macDef1 <?> "macro defination"
                     where macSig' = try $ do
                                   -- toplevel の名前は '*'
                                   cxt <- string "*" <|> symbol
-                                  (try $ (\list -> cxt:list)
+                                  (try $ (cxt:)
                                          <$> (requireSpaces >> string "->" >> requireSpaces >> macSig'))
                                     <|> return [cxt]
 
