@@ -2,7 +2,9 @@ prefix = @prefix@
 
 compile:
 	ghc Main.hs -o bin/macra
+	ghc Macri.hs -o bin/macri
 
 install:
 	mkdir $(prefix)/bin
 	install -s bin/macra $(prefix)/bin
+	install -s bin/macri $(prefix)/bin
