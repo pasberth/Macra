@@ -28,9 +28,10 @@ spec = do
       -- #[ puts a  : * -> * = print a ]
       -- #[ echo a  : * -> * = puts a ]
       -- echo 1
-      it "" $ macroExpand mm "*" node `shouldBe` (Right (PrintNode (n 1)))
-      where mm = fromList [ (("*", "print"), (["*"], ["a"], ((PrintNode (q "a")))))
-                          , (("*", "puts") , (["*"], ["a"], (f (q "print") (q "a"))))
-                          , (("*", "echo") , (["*"], ["a"], (f (q "puts") (q "a")))) ]
-            node = (f (q "echo") (n 1))
-      
+      it "" $ do
+        mm <- liftIO $ mkMacroMap [ MacDefCNode "print" ["*"] ["a"] (PrintNode (q "a"))
+                                  , MacDefCNode "puts" ["*"] ["a"] (f (q "print") (q "a"))
+                                  , MacDefCNode "echo" ["*"] ["a"] (f (q "puts") (q "a"))]
+        mm `shouldBe` (Right $ fromList [ (("*", "print"), (["*"], ["a"], (PrintNode (q "a"))))
+                                        , (("*", "puts") , (["*"], ["a"], (PrintNode (q "a"))))
+                                        , (("*", "echo") , (["*"], ["a"], (PrintNode (q "a")))) ])
