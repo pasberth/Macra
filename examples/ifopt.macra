@@ -1,5 +1,0 @@
-#ifopt unittest
-#[ test :about expr = !do expr test ]
-#else
-#[ test :about expr = expr ]
-#end
