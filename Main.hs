@@ -2,6 +2,7 @@
 module Main where
 
 import System.Environment(getArgs)
+import System.FilePath.Posix(takeExtension)
 import Text.ParserCombinators.Parsec
 import Macra.Parser
 import Macra.VM
@@ -12,30 +13,53 @@ main = do
   case args of
     "--nodes":fname:xs -> do
       str <- readFile fname
-      case parse program fname str of
+      putStrLn "runTimeExpr:"
+      case parse runTimeExpr fname str of
+           Left x -> print x
+           Right x -> print x
+      putStrLn "compileTimeExpr:"
+      case parse compileTimeExpr fname str of
            Left x -> print x
            Right x -> print x
     "--macro":fname:xs -> do
       str <- readFile fname
       case parse compileTimeExpr fname str of
            Left x -> print x
-           Right x -> print (macroDefine x)
+           Right x -> do
+             r <- mkMacroMap x
+             case r of
+               Right mm -> print mm
+               Left err -> print err
     "--insts":fname:xs ->  do
       str <- readFile fname
       case parse compileTimeExpr fname str of
            Left x -> print x
            Right x ->
-             case parse program fname str of
+             case parse runTimeExpr fname str of
                Left x -> print x
-               Right expr -> print $ compile (macroDefine x) expr
-    path:xs -> do
-            str <- readFile path
-            case parse compileTimeExpr path str of
-              Left x -> print x
-              Right x ->
-                case parse program path str of
-                  Left x -> print x
-                  Right expr ->
-                    case compile (macroDefine x) expr of
-                      Right inst -> vm inst
-                      Left err -> print err
+               Right expr -> do
+                 r <- mkMacroMap x
+                 case r of
+                   Right mm -> print $ compile mm expr
+                   Left err -> print err
+    path:xs -> execFile path
+
+
+execFile path = do
+  str <- readFile path
+  let parseCompileTimeExpr = case parse compileTimeExpr path str of
+                                    Left x -> print x
+                                    Right cnode -> parseRunTimeExpr cnode
+      parseRunTimeExpr cnode = case parse runTimeExpr path str of
+                                      Left x -> print x
+                                      Right node -> compileNode cnode node
+      compileNode cnode node = do
+                                 r <- mkMacroMap cnode
+                                 case r of
+                                   Left err -> print err
+                                   Right mm ->
+                                     case compile mm node of
+                                       Right inst -> execInst inst
+                                       Left err -> print err
+      execInst inst = vm inst
+  parseCompileTimeExpr

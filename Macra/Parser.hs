@@ -1,14 +1,15 @@
-module Macra.Parser (program,
+module Macra.Parser (runTimeExpr,
                      compileTimeExpr,
                      Identifier(..),
-                     MacCxtNode(..),
+                     CNode(..),
                      Node(..),
                      CxtId,
                      MacSig,
                      MacParams) where
 
 import Control.Monad
-import qualified Control.Applicative as A
+import Control.Applicative hiding ( (<|>)
+                                  , many )
 import qualified Text.ParserCombinators.Parsec as P
 import Text.ParserCombinators.Parsec hiding (spaces)
 
@@ -17,13 +18,21 @@ type Identifier = String
 
 -- マクロ定義や、将来追加されるかもしれない
 -- #include など、 `#' から始まるコンパイル時の命令
-data MacCxtNode -- 普通のマクロ定義。
-                -- #[ m a : t -> u = a ]
-                = MacDef1MNode Identifier MacSig MacParams Node
-                -- 関数に対するコンテキストの定義。
-                -- # f :: t -> u
-                | MacDef2MNode Identifier MacSig MacParams
-                deriving (Show, Eq)
+-- `#' と include の間に空白はあってもなくてもいい。
+-- CompiletimeNode
+data CNode -- 普通のマクロ定義。
+           -- #[ m a : t -> u = a ]
+           = MacDefCNode Identifier MacSig MacParams Node
+           -- #!/usr/bin/env macra -opt
+           -- であれば、 "/usr/bin/env" が FilePath 、 "macra -opt" が String となる
+           -- 通常は使用しないだろう、いちおうパースして使用できるようにしておく
+           | ShebangCNode FilePath String
+           -- # include prelude.macra
+           | IncludeCNode FilePath
+           -- # require prelude.macra
+           | RequireCNode FilePath
+           | IfoptCNode String [CNode] [CNode]
+           deriving (Show, Eq)
 
 type CxtId = String              -- マクロのコンテキストのid
 type MacSig = [CxtId]            -- マクロのシグネチャ
@@ -43,16 +52,7 @@ data Node = SymNode Identifier
           | CdrNode Node
           | DoNode Node Node
           | NativeNode Integer
-          -- macroExpand で展開済みのマクロを展開するのを防ぐノード
-          -- macroExpand の実装では、
-          --   #[ m a x : t -> t -> t = a ]
-          --   m x w
-          -- のように書くと、
-          --   まず `a' が x に置換され、
-          -- そのあと置換後の `x' が `w' に置換される。
-          -- TODO: これは設計が汚いか？ 
-          --       MacroNode を消してmacroExpandのほうでなんとかすべき。
-          | MacroNode Node
+          | EqualNode Node Node
           deriving (Eq)
 
 instance Show Node where
@@ -64,323 +64,313 @@ instance Show Node where
   show (LambdaNode a b) = concat ["!lambda", (indent2 $ show a), (indent2 $ show b)]
   show (DefineNode a b) = concat ["!define", (indent2 $ show a), (indent2 $ show b)]
   show (FuncallNode a b) = concat ["!funcall", (indent2 $ show a), (indent2 $ show b)]
-  show (MacroNode a) = concat ["#{", (indent2 $ show a ++ "\n}")]
   show (PrintNode a) = concat ["!print", (indent2 $ show a)]
   show (ConsNode a b) = concat ["!cons", (indent2 $ show a), (indent2 $ show b)]
   show (CarNode a) = concat ["!car", show a]
   show (CdrNode a) = concat ["!cdr", show a]
   show (DoNode a b) = concat ["!do", (indent2 $ show a), (indent2 $ show b)]
   show (NativeNode a) = "!native " ++ (show a)
+  show (EqualNode a b) = concat ["!equal", (indent2 $ show a), (indent2 $ show b)]
 
 indent :: String -> String -> String
 indent idt node = foldl (\str x -> concat [str, "\n", idt,  x]) "" (lines node)
 indent2 node = indent "  " node
 
-parseMarkAsIdentifer :: Parser Identifier
-parseMarkAsIdentifer = parseMarkAsIdentifer' <|> parseIdAsIdentifier
-          where parseMarkAsIdentifer' = try $ do
-                a <- beginLetter
-                b <- many containLetter
-                return (a:b)
-                -- ruby -e 'puts [*33..47, *58..64, *91..96, *123..126].map(&:chr).join'
-                where beginLetter = oneOf "!\"#$%&'()*+,-./;<=>?@[\\]^_`{|}~"
-                      containLetter = beginLetter
 
-
-parseIdAsIdentifier :: Parser Identifier
-parseIdAsIdentifier = try parseSymIdAsIdentifier
-                    where parseSymIdAsIdentifier = do
-                                                 a <- beginLetter
-                                                 b <- many containLetter
-                                                 return (a:b)
-                                                 where beginLetter = letter
-                                                       containLetter = letter <|> oneOf "0123456789" <|> oneOf "-"
-
-parseMark :: Parser Node
-parseMark = A.pure SymNode A.<*> try parseMarkAsIdentifer
-
-parseId :: Parser Node
-parseId = A.pure SymNode A.<*> try parseIdAsIdentifier
-
-parseString :: Parser Node
-parseString = do
-            str <- parseStr
-            return $ foldr (\ch str -> ConsNode ch str) NilNode str
-            where parseChar :: Parser Node
-                  parseChar = liftM CharNode (try (string "\\\"" >> return '"')
-                                             <|> noneOf ['"'])
-                  parseStr = (between (char '"') (char '"') (many parseChar)) <?> "a string"
-
-parseChar :: Parser Node
-parseChar = liftM CharNode (prefix >> anyChar)
-          where prefix = try $ string "$'"
-
-parseNumber :: Parser Node
-parseNumber = parseFloatNum <|> parseIntNumAsFloat <?> "a number"
-
-parseFloatNum = try $ do
-            i <- parseIntNum
-            char '.'
-            ds <- many1 digit
-            return $ NumNode (read $ concat [show i, ".", ds])
-            where digit = oneOf "0123456789"
-
-parseIntNumAsFloat = try $ do
-                   i <- parseIntNum
-                   return $ NumNode (read $ concat [show i, ".", "0"])
-
-parseIntNum :: Parser Integer
-parseIntNum = parseIntNumNonZero <|> parseIntNumZero <?> "a integer"
-parseIntNumZero = try $ do { char '0'; return 0 }
-parseIntNumNonZero = try $ do
-            sign <- char '-' <|> do {return ' '}
-            d <- beginDigit
-            ds <- many digit
-            return $ read $ concat [[sign], [d], ds]
-            where digit = oneOf "0123456789"
-                  beginDigit = oneOf "123456789"
-
-compileTimeExpr :: Parser [MacCxtNode]
+----------------------------------------
+-- Compile Time Statements
+----------------------------------------
+compileTimeExpr :: Parser [CNode]
 compileTimeExpr = many $ try $ do
                     skipProgram
                     string "#"
-                    parseMacDef
+                    compileTimeExprNonSharp
                  where skipProgram = skipMany $ noneOf "#"
 
-parseMacSig :: Parser MacSig
-parseMacSig = fnType <|> primType <?> "signature"
-             where primType = try $ do
-                            cxtId <- parseCxtId
-                            return [cxtId]
-                   fnType = try $ do
-                          cxtId <- parseCxtId
-                          requireSpaces
-                          string "->"
-                          requireSpaces
-                          lst <- parseMacSig
-                          return (cxtId:lst)
+compileTimeExprNonSharp = macDef <|> include <|> require <|> shebang <|> ifopt
 
-parseCxtId :: Parser CxtId
-parseCxtId = try parseCxtId'
-           where parseCxtId' = do
-                             a <- beginLetter
-                             b <- many containLetter
-                             return $ (a:b)
-                             where beginLetter = letter
-                                   containLetter = letter <|>
-                                                   oneOf "0123456789" <|>
-                                                   oneOf "-"
+shebang :: Parser CNode
+shebang = try $ ShebangCNode
+                <$> ( char '!' >> skipMany (oneOf " \t") >> many1 (noneOf " \t\n") )
+                <*> ( skipMany (oneOf " \t") >> many (noneOf "\n"))
 
-parseMacDef :: Parser MacCxtNode
-parseMacDef = parseMacDef2 <|> parseMacDef1 <?> "macro defination"
-            where parseMacDef2 = try $ do
-                               skipSpaces
-                               (id, params) <- parseMacDefIdAndParams
-                               requireSpaces
-                               string "::"
-                               requireSpaces
-                               sig <- parseMacSig
-                               return $ MacDef2MNode id sig params
-                  parseMacDef1 = try $ do
-                               skipSpaces
-                               string "["
-                               skipSpaces
-                               (id, params) <- parseMacDefIdAndParams
-                               requireSpaces
-                               string ":"
-                               requireSpaces
-                               sig <- parseMacSig
-                               requireSpaces
-                               string "="
-                               requireSpaces
-                               defi <- parseSemicolon
-                               skipSpaces
-                               string "]"
-                               return $ MacDef1MNode id sig params (MacroNode defi)
+include :: Parser CNode
+include = try $ IncludeCNode <$> ( skipSpaces >> string "include" >> skipSpaces >> many1 (noneOf " \t\n"))
 
-parseMacDefIdAndParams :: Parser (Identifier, MacParams)
-parseMacDefIdAndParams = brackets <|> infixOp <|> prefixOp
-                       where brackets = bracket "(" ")" <|>
-                                        bracket "[" "]" <|>
-                                        bracket "{" "}"
-                             bracket beg end = try $ do
-                                     string beg
-                                     skipSpaces
-                                     param <- parseIdAsIdentifier
-                                     skipSpaces
-                                     string end
-                                     return (beg, [param])
-                             suffixOp = try $ do
-                                   params <- many1 parseIdAsIdentifier
-                                   skipSpaces
-                                   id <- string "@" >> parseMarkAsIdentifer
-                                   return (id, params)
-                             infixOp = try $ do
-                                   param1 <- parseIdAsIdentifier
-                                   skipSpaces
-                                   id <- (try $ string ":" >>
-                                                parseMarkAsIdentifer)
-                                         <|> (try $ do
-                                                  sym <- string "=>"
-                                                  return sym)
-                                         <|> (try $ do
-                                                  sym <- (string ",")
-                                                  return sym)
-                                         <|> (try $ do
-                                                  sym <- (string ";")
-                                                  return sym)
-                                   skipSpaces
-                                   param2 <- parseIdAsIdentifier
-                                   params <- many (try $ requireSpaces >>
-                                                         parseIdAsIdentifier)
-                                   return (id, (param1:param2:params))
-                             prefixOp = try $ do
-                                    id <- parseIdAsIdentifier
-                                    params <- many (try $ requireSpaces >>
-                                                          parseIdAsIdentifier)
-                                    return (id, params)
+require :: Parser CNode
+require = try $ RequireCNode <$> ( skipSpaces >> string "require" >> skipSpaces >> many1 (noneOf " \t\n"))
 
-program :: Parser Node
-program = try (skipSpacesAndCompileTimeExpressions >> parseSemicolon)
-        where skipSpacesAndCompileTimeExpressions = do
-                skipSpaces
-                try (string "#" >> parseMacDef >> skipSpacesAndCompileTimeExpressions)
-                  <|> return ()
+ifopt :: Parser CNode
+ifopt = try $ IfoptCNode <$> (skipSpaces >> string "ifopt" >> skipSpaces >> many1 (noneOf " \t\n"))
+                         <*> compileTimeExpr
+                         <*> do { elseExprs <- try (do { skipProgram
+                                                       ; string "#"
+                                                       ; skipSpaces
+                                                       ; string "else"
+                                                       ; compileTimeExpr
+                                                       }) <|> return []
+                                ; skipProgram
+                                ; string "#"
+                                ; skipSpaces
+                                ; string "end"
+                                ; return elseExprs
+                                }
+      where skipProgram = skipMany $ noneOf "#"
 
-parseExpr :: Parser Node
-parseExpr = parseLambdaSyntax <?> "a expression"
+macDef :: Parser CNode
+macDef = macDef <?> "macro defination"
+       where macDef = try $ (\(id, params) sig defi end -> MacDefCNode id sig params defi)
+                            <$> ( skipSpaces >> string "["
+                               >> skipSpaces >> idAndParams )
+                            <*> ( requireSpaces >> string ":"
+                               >> requireSpaces >> macSig )
+                            <*> ( requireSpaces >> string "="
+                               >> requireSpaces >> semicolon )
+                            <*> (skipSpaces >> string "]")
 
-parseSemicolon :: Parser Node
-parseSemicolon = parseSemicolon' <|> parseMaccall
-               where parseSemicolon' = try $ do
-                                     expr1 <- parseMaccall
-                                     skipSpaces
-                                     string ";"
-                                     skipSpaces
-                                     expr2 <- parseSemicolon
-                                     return (FuncallNode
-                                              (FuncallNode
-                                                (SymNode ";")
-                                                expr1)
-                                              expr2)
+             macSig :: Parser MacSig
+             macSig = macSig' <?> "signature"
+                    where macSig' = try $ do
+                                  -- toplevel の名前は '*'
+                                  cxt <- string "*" <|> symbol
+                                  (try $ (cxt:)
+                                         <$> (requireSpaces >> string "->" >> requireSpaces >> macSig'))
+                                    <|> return [cxt]
 
-parseMaccall :: Parser Node
-parseMaccall = parseMaccall' <?> "one of prefix/infix/suffix"
-             where maccall = infixOp <|> prefixOp
-                   prefixOp = try $ do
-                            requireSpaces
-                            return FuncallNode
-                   infixOp = try $ do
-                           skipSpaces
-                           string ":"
-                           id <- parseMark
-                           skipSpaces
-                           return $ a (FuncallNode id)
-                   a :: (Node -> Node) -> Node -> Node -> Node
-                   a f n m = FuncallNode (f n) m
-                   suffixOp = try $ do
-                            skipSpaces
-                            string "@"
-                            id <- parseMark
-                            return $ FuncallNode id
-                   parseMaccall' = try $ do
-                                 expr1 <- parseLambdaSyntax
-                                 sfxes <- many ((try $ do {
-                                       op <- maccall
-                                       ; expr2 <- parseLambdaSyntax
-                                       ; return $ (\node -> op node expr2)
-                                       }) <|> (try $ do {
-                                         op <- suffixOp
-                                         ; return op
-                                       }))
-                                 return $ foldl (\expr sfx -> sfx expr) expr1 sfxes
+             idAndParams :: Parser (Identifier, MacParams)
+             idAndParams = brackets <|> infixMacDef <|> prefixMacDef
+                         where brackets = bracket "(" ")" <|>
+                                          bracket "[" "]" <|>
+                                          bracket "{" "}"
+                               bracket beg end = try $ (\beg param end -> (beg, [param]))
+                                                       <$> (string beg)
+                                                       <*> (skipSpaces >> symbol)
+                                                       <*> (skipSpaces >> (string end))
+                               infixOpList = [ (++) <$> string ":" <*> quotedSymbol
+                                             , string "=>"
+                                             , string "->"
+                                             , string ","
+                                             , string ";"
+                                             ]
+                               infixOp = foldl (<|>)
+                                               (head infixOpList)
+                                               (tail infixOpList)
+                               infixMacDef = try $ (\param1 id param2 -> (id, [param1, param2]))
+                                                   <$> symbol
+                                                   <*> (skipSpaces >> infixOp)
+                                                   <*> (skipSpaces >> symbol)
+                               prefixMacDef = try $ (,)
+                                                    <$> symbol
+                                                    <*> many (try $ requireSpaces >> symbol)
 
-parseBracketMaccall :: Parser Node
-parseBracketMaccall = parseBracket <|> parseVMInst <|> parseString <|> parseChar <|> parseId <|> parseNumber
-                    where bracket beg end = try $ do {
-                                        string beg
-                                        ; skipSpaces
-                                        ; expr <- parseSemicolon
-                                        ; skipSpaces
-                                        ; string end
-                                        ; return (FuncallNode (SymNode beg) expr)
-                                    }
-                          parseBracket = bracket "[" "]" <|>
-                                       bracket "(" ")" <|>
-                                       bracket "{" "}"
+----------------------------------------
+-- Runtime Expression
+----------------------------------------
+runTimeExpr :: Parser Node
+runTimeExpr = do { skipSpaces
+                 ; expr <- semicolon
+                 ; skipSpaces
+                 ; eof
+                 ; return expr
+                 } <?> "a program containing at least one expression."
 
-parseLambdaSyntax :: Parser Node
-parseLambdaSyntax = parseEqualArrow <|> parseComma <|> parseBracketMaccall
+-- もっとも優先順位の低い中置関数。
+-- a; b; c は a ; (b ; c) のように右に再帰する。
+-- semicolon-expression:
+--   coloninfix-expression; semicolon-expression
+--   coloninfix-expression
+semicolon :: Parser Node
+semicolon = try semicolon' <|> coloninfix <?> "semicolon-expression"
+          where semicolon' = (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
+                           <$> coloninfix
+                           <*> (skipSpaces >> string ";")
+                           <*> (skipSpaces >> semicolon)
 
-parseEqualArrow :: Parser Node
-parseEqualArrow = try (do
-                expr1 <- parseBracketMaccall
-                skipSpaces
-                string "=>"
-                skipSpaces
-                expr2 <- parseMaccall
-                return $ FuncallNode (FuncallNode (SymNode "=>") expr1) expr2
-                ) <?> "`=>'"
+-- coloninfix-expression:
+--   coloninfix-expression :identifier funcall-expression
+--   funcall-expression
+coloninfix :: Parser Node
+coloninfix = coloninfix' <?> "coloninfix-expression"
+           where infixOp = do { skipSpaces
+                              ; x <- ((++) <$> string ":" <*> quotedSymbol)
+                              ; skipSpaces
+                              ; return (FuncallNode . (FuncallNode . SymNode) x)
+                              }
+                 coloninfix' = try $ do
+                             expr <- funcall
+                             exprs <- many (try $ flip <$> infixOp <*> (skipSpaces >> funcall))
+                             return $ foldl (\a b -> b a) expr exprs
 
-parseComma :: Parser Node
-parseComma = try (do
-           expr1 <- parseBracketMaccall
-           skipSpaces
-           string ","
-           skipSpaces
-           expr2 <- parseMaccall
-           return $ FuncallNode (FuncallNode (SymNode ",") expr1) expr2
-           ) <?> "`,'"
+-- funcall-expression:
+--   funcall-expression arrow-expression
+--   arrow-expression
+funcall :: Parser Node
+funcall = funcall' <?> "funcall-expression"
+        where prefixOp = requireSpaces >> return FuncallNode
+              funcall' = try $ do
+                       expr <- arrow
+                       exprs <- many (try $ flip <$> prefixOp <*> (skipSpaces >> arrow))
+                       return $ foldl (\a b -> b a) expr exprs
 
-parseVMInst :: Parser Node
-parseVMInst = parseVMIf <|> parseVMLambda <|> parseVMDefine <|> parseVMFuncall <|> parseVMPrint <|> parseVMCons <|> parseVMCar <|> parseVMCdr <|> parseVMDo <|> parseVMNative
 
-parseVMIf :: Parser Node
-parseVMIf = A.pure IfNode
-            A.<*> (try $ string "!if" >> requireSpaces >> parseExpr)
-            A.<*> (skipSpaces >> parseExpr)
-            A.<*> (skipSpaces >> parseExpr)
+-- arrow-expression:
+--   primary-expression => funcall-expression
+--   primary-expression -> funcall-expression
+--   primary-expression , funcall-expression
+--   primary-expression
+arrow :: Parser Node
+arrow = arrow' <|> prim <?> "arrow-expression"
+      where arrow' = try $ (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
+                           <$> prim
+                           <*> (skipSpaces >> arrowMark)
+                           <*> (skipSpaces >> funcall)
 
-parseVMLambda :: Parser Node
-parseVMLambda = A.pure LambdaNode
-                A.<*> (try $ string "!lambda" >> requireSpaces >> parseIdAsIdentifier)
-                A.<*> (skipSpaces >> parseExpr)
+            arrowMark = foldl (\x mark -> x <|> (try $ string mark))
+                              (try $ string $ head arrowList)
+                              (tail arrowList)
 
-parseVMDefine :: Parser Node
-parseVMDefine = A.pure DefineNode
-                A.<*> (try $ string "!define" >> requireSpaces >> parseIdAsIdentifier)
-                A.<*> (skipSpaces >> parseExpr)
+            arrowList = [ "=>"
+                        , "->"
+                        , ","
+                        ]
 
-parseVMFuncall :: Parser Node
-parseVMFuncall = A.pure FuncallNode
-                 A.<*> (try $ string "!funcall" >> requireSpaces >> parseExpr)
-                 A.<*> (skipSpaces >> parseExpr)
 
-parseVMPrint :: Parser Node
-parseVMPrint = A.pure PrintNode
-               A.<*> (try $ string "!print" >> requireSpaces >> parseExpr)
+-- primary-expression:
+--   [ semicolon-expression ]
+--   { semicolon-expression }
+--   ( semicolon-expression )
+--   exclam-expression
+--   identifier
+--   constant
+prim :: Parser Node
+prim = bracket <|> exclamExpr <|> strLit <|> charLit <|> id <|> num
+     where bracket = try $ do { (beg, end) <- bracketBeg
+                              ; skipSpaces
+                              ; expr <- semicolon
+                              ; skipSpaces
+                              ; string end
+                              ; return (FuncallNode (SymNode beg) expr)
+                              }
+           brackets = [ ("[", "]")
+                      , ("(", ")")
+                      , ("{", "}")
+                      ]
+           bracketBeg :: Parser (String, String)
+           bracketBeg = bracketBeg' brackets
 
-parseVMCons :: Parser Node
-parseVMCons = A.pure ConsNode
-              A.<*> (try $ string "!cons" >> requireSpaces >> parseExpr)
-              A.<*> (requireSpaces >> parseExpr)
+           bracketBeg' :: [(String, String)] -> Parser (String, String)
+           -- satisfy (const False) は常に失敗するので、 ("", "") が返る
+           -- ことはあり得ない
+           bracketBeg' [] = satisfy (const False) >> return ("", "")
+           bracketBeg' ((beg, end):brackets) =
+             (string beg >> return (beg, end)) <|> bracketBeg' brackets
 
-parseVMCar :: Parser Node
-parseVMCar = A.pure CarNode
-             A.<*> (try $ string "!car" >> requireSpaces >> parseExpr)
+           id :: Parser Node
+           id = SymNode <$> try symbol
 
-parseVMCdr :: Parser Node
-parseVMCdr = A.pure CdrNode
-             A.<*> (try $ string "!cdr" >> requireSpaces >> parseExpr)
+           strLit :: Parser Node
+           strLit = do
+                  str <- str'
+                  return $ foldr ConsNode NilNode str
+                  where char' :: Parser Node
+                        char' = liftM CharNode (try (string "\\\"" >> return '"')
+                                             <|> noneOf ['"'])
+                        str' = (between (char '"') (char '"') (many char')) <?> "a string"
 
-parseVMDo = A.pure DoNode
-            A.<*> (try $ string "!do" >> requireSpaces >> parseExpr)
-            A.<*> (requireSpaces >> parseExpr)
+           charLit :: Parser Node
+           charLit = liftM CharNode (prefix >> anyChar)
+                   where prefix = try $ string "$'"
 
--- nativeはIntのidで指定する
-parseVMNative :: Parser Node
-parseVMNative = A.pure NativeNode
-            A.<*> (try $ string "!native" >> requireSpaces >> parseIntNum)
+           num :: Parser Node
+           num = num' <?> "a number"
+               where num' = try $ do
+                          sign  <- char '-' <|> return ' '
+                          int   <- string "0" <|> many1 digit
+                          float <- (char '.' >> many1 digit) <|> return "0"
+                          return $ NumNode $ read $ concat [[sign], int, ".", float]
+
+symbol :: Parser Identifier
+symbol = (string "'" >> skipSpaces >> quotedSymbol)
+         <|> symbol' <?> "symbol"
+       where symbol'       = try ((:) <$> beginLetter <*> symbolEnd)
+             beginLetter   = letter <|> oneOf "_"             -- シンボルの開始として許される文字。 abc の a
+             containLetter = letter <|> digit <|> oneOf "-_"  -- シンボルに含める文字。 abc の b
+             endLetter     = letter <|> digit <|> oneOf "_"   -- シンボルの終わりに含める文字。 abc の c
+             symbolEnd     = symbolEnd1 <|> return []
+             symbolEnd1    = try ((:) <$> containLetter <*> symbolEnd1)
+                             <|> try ((\lett -> [lett]) <$> endLetter)
+
+quotedSymbol :: Parser Identifier
+quotedSymbol = quotedSymbol' <?> "quoted symbol"
+             where quotedSymbol' = many1 (noneOf " \t\n")
+
+exclamExpr :: Parser Node
+exclamExpr = try $ string "!" >> ( excIf <|> excLambda <|> excDefine <|>
+                                   excFuncall <|> excPrint <|> excCons <|>
+                                   excCar <|> excCdr <|> excDo <|> excNative
+                                   <|> excEqual )
+            where excIf :: Parser Node
+                  excIf = IfNode
+                          <$> (try $ string "if" >> requireSpaces >> parseExpr)
+                          <*> (skipSpaces >> parseExpr)
+                          <*> (skipSpaces >> parseExpr)
+
+                  excLambda :: Parser Node
+                  excLambda = LambdaNode
+                              <$> (try $ string "lambda" >> requireSpaces >> symbol)
+                              <*> (skipSpaces >> parseExpr)
+
+                  excDefine :: Parser Node
+                  excDefine = DefineNode
+                              <$> (try $ string "define" >> requireSpaces >> symbol)
+                              <*> (skipSpaces >> parseExpr)
+
+                  excFuncall :: Parser Node
+                  excFuncall = FuncallNode
+                               <$> (try $ string "funcall" >> requireSpaces >> parseExpr)
+                               <*> (skipSpaces >> parseExpr)
+
+                  excPrint :: Parser Node
+                  excPrint = PrintNode
+                             <$> (try $ string "print" >> requireSpaces >> parseExpr)
+
+                  excCons :: Parser Node
+                  excCons = ConsNode
+                            <$> (try $ string "cons" >> requireSpaces >> parseExpr)
+                            <*> (requireSpaces >> parseExpr)
+
+                  excCar :: Parser Node
+                  excCar = CarNode
+                           <$> (try $ string "car" >> requireSpaces >> parseExpr)
+
+                  excCdr :: Parser Node
+                  excCdr = CdrNode
+                           <$> (try $ string "cdr" >> requireSpaces >> parseExpr)
+
+                  excDo :: Parser Node
+                  excDo = DoNode
+                          <$> (try $ string "do" >> requireSpaces >> parseExpr)
+                          <*> (requireSpaces >> parseExpr)
+
+                  -- nativeはIntのidで指定する
+                  excNative :: Parser Node
+                  excNative = NativeNode
+                              <$> (try $ string "native" >> requireSpaces >> nativeId)
+                            where idList = ["1001", "1002"]
+                                  accept id = try $ read <$> string id
+                                  nativeId = foldl (\x id -> x <|> accept id)
+                                                   (accept $ head idList)
+                                                   (tail idList) <?> "native id"
+
+                  excEqual :: Parser Node
+                  excEqual = EqualNode
+                            <$> (try $ string "equal" >> requireSpaces >> parseExpr)
+                            <*> (requireSpaces >> parseExpr)
+
+
+                  parseExpr :: Parser Node
+                  parseExpr = prim <?> "a expression"
+
 
 skipComment :: Parser ()
 skipComment = try $ do
@@ -395,8 +385,7 @@ skipComment = try $ do
                          then return ()
                          else skip begMark
 
-spaces = oneOf " \t\n"
-skipSpaces = skipMany ( (spaces >> return ()) <|>
-                        skipComment) <?> "skipped spaces"
-requireSpaces = eof <|> (skipMany1 ((spaces >> return ()) <|>
-                                     skipComment)) <?> "spaces"
+spaces = oneOf " \t\n" >> return ()
+skipCompileTimeExpr = try (string "#" >> compileTimeExprNonSharp >> return ())
+skipSpaces = skipMany ( spaces <|> skipComment <|> skipCompileTimeExpr) <?> "skipped spaces"
+requireSpaces = eof <|> (skipMany1 (spaces <|> skipComment <|> skipCompileTimeExpr)) <?> "spaces"

@@ -11,86 +11,27 @@ import Macra.Compiler
 main :: IO ()
 main = hspec spec
 
+q = SymNode
+c = CharNode
+n = NumNode
+nil = NilNode
+cons = ConsNode
+f = FuncallNode
+
 spec :: Spec
 spec = do
 
   describe "Macra.Compiler" $ do
 
-    describe "macro defination" $ do
-
-      it "a" $ do
-
-         (macroDefine [ (MacCxtTLNode
-                          [ (CxtDefMNode
-                              "function"
-                              [ (MacDefMCNode
-                                  (SymId "m")
-                                  [(SymId "x")]
-                                  (SymNode (SymId "x")))
-                              ])
-                          ])
-                      ]) `shouldBe`
-                          fromList [
-                            (("function", (SymId "m")), ([(SymId "x")],
-                                                 (SymNode (SymId "x"))))
-                          ]
-
-    describe "macro expansion " $ do
-
-      it "a" $ do
-        (macroExpand (fromList
-                       [ ( (toplevelContext, (SymId "m")),
-                           ([(SymId "x")], (SymNode (SymId "x")))
-                         )
-                       ])
-                     (fromList [])
-                     (MaccallNode
-                       (SymNode (SymId "m"))
-                       (SymNode (SymId "a"))) `shouldBe`
-                         (Right (SymNode (SymId "a"))))
-      it "b" $ do
-        (macroExpand (fromList
-                       [ ( (toplevelContext, (SymId "m")),
-                           ( [(SymId "x"), (SymId "y")],
-                             (MaccallNode
-                               (SymNode (SymId "x"))
-                               (SymNode (SymId "y"))))
-                         )
-                       ])
-                     (fromList [])
-                     (MaccallNode
-                       (MaccallNode
-                         (SymNode (SymId "m"))
-                         (SymNode (SymId "a")))
-                       (SymNode (SymId "b"))) `shouldBe`
-                         (Right (MaccallNode
-                           (SymNode (SymId "a"))
-                           (SymNode (SymId "b")))))
-
-      it "b" $ do
-        (macroExpand (fromList
-                       [ ( (toplevelContext, (SymId "=>"))
-                         , ( [(SymId "a"), (SymId "b")]
-                           , (SymNode (SymId "xxx"))))
-                       , ( ("function", (SymId "=>"))
-                         , ( [(SymId "a"), (SymId "b")]
-                           , (SymNode (SymId "yyy"))))
-                       ])
-                     -- map :: function -> expression
-                     (fromList
-                       [ ( (SymId "map")
-                         , ["function", "expression"])
-                       ])
-
-                     -- map x => x
-                     (MaccallNode
-                       (SymNode (SymId "map"))
-                       (MaccallNode
-                         (MaccallNode
-                           (SymNode (SymId "=>"))
-                           (SymNode (SymId "x")))
-                         (SymNode (SymId "x")))) `shouldBe`
-                         (Right
-                           (FuncallNode
-                             (SymNode (SymId "map"))
-                             (SymNode (SymId "yyy")))))
+    describe "recursive expansion" $ do
+      -- #[ print a : * -> * = !print a ]
+      -- #[ puts a  : * -> * = print a ]
+      -- #[ echo a  : * -> * = puts a ]
+      -- echo 1
+      it "" $ do
+        mm <- liftIO $ mkMacroMap [ MacDefCNode "print" ["*", "*"] ["a"] (PrintNode (q "a"))
+                                  , MacDefCNode "puts" ["*", "*"] ["a"] (f (q "print") (q "a"))
+                                  , MacDefCNode "echo" ["*", "*"] ["a"] (f (q "puts") (q "a"))]
+        mm `shouldBe` (Right $ fromList [ (("*", "print"), (["*"], ["a"], (PrintNode (q "a"))))
+                                        , (("*", "puts") , (["*"], ["a"], (PrintNode (q "a"))))
+                                        , (("*", "echo") , (["*"], ["a"], (PrintNode (q "a")))) ])

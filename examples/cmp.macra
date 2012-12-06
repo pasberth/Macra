@@ -1,0 +1,24 @@
+#[ a; b : * -> * -> * = !do a b ]
+
+!if !equal "a" "a"
+  !print "\"a\" == \"a\""
+  !print "\"a\" != \"a\"";
+
+!if !equal 1 2
+  !print "1 == 2"
+  !print "1 != 2";
+
+----------------------------------------
+  関数なら同一性の比較  
+----------------------------------------
+
+!define f !lambda x x;
+!define g !lambda x x;
+---- f != g ----
+!if !equal f g
+  !print "f == g"
+  !print "f != g";
+---- f == f ----
+!if !equal f f
+  !print "f == f"
+  !print "f != f"

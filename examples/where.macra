@@ -1,8 +1,7 @@
-#[ body :where id expr : toplevel -> symbol -> toplevel -> toplevel
-                       = !lambda id body expr ]
+#[ func :is arg      : where -> * -> *     = !funcall func arg  ]
+#[ body :where param : *     -> * -> where = !lambda param body ]
+#[ body :and   param : *     -> * -> where = !lambda param body ]
 
-!do
-  !print x
-  !print y
-    :where x 1
-    :where y 2
+!do !print x
+    !print y :where x :is 1
+             :and   y :is 2
