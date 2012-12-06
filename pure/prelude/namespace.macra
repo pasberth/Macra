@@ -1,26 +1,29 @@
 #include prelude
 
 
-#[ namespace name space : symbol -> namespace -> * = !define name !lambda msg space ]
-#[ {a} : namespace -> * = a ]
-#[ def id fn : * -> function -> namespace = if !equal id msg fn nil ]
-#[ a; b : namespace -> namespace -> namespace = !lambda _ !if _ _ b a ]
+#[ namespace name space : symbol -> namespace -> * = !define name space ]
+#[ {a}       : namespace -> * = a ]
+#[ def id fn : * -> function -> namespace = [id, fn, nil] ]
+#[ a; b      : namespace -> namespace -> namespace = !cons a b ]
+#[ ends-here : namespace = nil ]
 
 namespace Bool
 { def "true" x, y => x
 ; def "false" x, y => y
+; ends-here
 };
 
-!define true (Bool "true");
-!define false (Bool "false");
-!print (true 1 2);
-!print (false 1 2);
+!print Bool;
 
+#[ caar xs : * -> * = !car !car xs ]
+#[ cadar xs : * -> * = !car !cdr !car xs ]
 
-#[ import _namespace msg : * -> * -> *      = _namespace msg ]
-#[ importing :as id     : * -> symbol -> * = !define id importing ]
+def lookup key, pairs =>
+  !if (not pairs)
+      nil
+      !if !equal key (caar pairs)
+          (cadar pairs)
+          (lookup key (cdr pairs));
 
-import Bool "true" :as bTrue;
-import Bool "false" :as bFalse;
-!print bTrue;
-!print bFalse
+!print (lookup "true" Bool 1 2);
+!print (lookup "false" Bool 1 2)
