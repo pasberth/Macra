@@ -1,7 +1,7 @@
 module Macra.Parser (runTimeExpr,
                      compileTimeExpr,
                      Identifier(..),
-                     MacCxtNode(..),
+                     CNode(..),
                      Node(..),
                      CxtId,
                      MacSig,
@@ -18,22 +18,21 @@ type Identifier = String
 
 -- マクロ定義や、将来追加されるかもしれない
 -- #include など、 `#' から始まるコンパイル時の命令
-data MacCxtNode -- 普通のマクロ定義。
-                -- #[ m a : t -> u = a ]
-                = MacDef1MNode Identifier MacSig MacParams Node
-                -- #!/usr/bin/env macra -opt
-                -- であれば、 "/usr/bin/env" が FilePath 、 "macra -opt" が String となる
-                -- 通常は使用しないだろう、いちおうパースして使用できるようにしておく
-                | Shebang FilePath String
-                -- # include prelude.macra
-                -- `#' と include の間に空白はあってもなくてもいい。
-                -- 拡張子は省略不可能。
-                -- もし https://github.com/pasberth/Macra/issues/40 で拡張子に意味を持たせるなら、
-                -- .macra だけ省略できるというのは不自然
-                | Include FilePath
-                -- # require prelude.macra
-                | Require FilePath
-                deriving (Show, Eq)
+-- `#' と include の間に空白はあってもなくてもいい。
+-- CompiletimeNode
+data CNode -- 普通のマクロ定義。
+           -- #[ m a : t -> u = a ]
+           = MacDefCNode Identifier MacSig MacParams Node
+           -- #!/usr/bin/env macra -opt
+           -- であれば、 "/usr/bin/env" が FilePath 、 "macra -opt" が String となる
+           -- 通常は使用しないだろう、いちおうパースして使用できるようにしておく
+           | ShebangCNode FilePath String
+           -- # include prelude.macra
+           | IncludeCNode FilePath
+           -- # require prelude.macra
+           | RequireCNode FilePath
+           | IfoptCNode String [CNode] [CNode]
+           deriving (Show, Eq)
 
 type CxtId = String              -- マクロのコンテキストのid
 type MacSig = [CxtId]            -- マクロのシグネチャ
@@ -81,48 +80,65 @@ indent2 node = indent "  " node
 ----------------------------------------
 -- Compile Time Statements
 ----------------------------------------
-compileTimeExpr :: Parser [MacCxtNode]
+compileTimeExpr :: Parser [CNode]
 compileTimeExpr = many $ try $ do
                     skipProgram
                     string "#"
                     compileTimeExprNonSharp
                  where skipProgram = skipMany $ noneOf "#"
 
-compileTimeExprNonSharp = macDef <|> include <|> require <|> shebang
+compileTimeExprNonSharp = macDef <|> include <|> require <|> shebang <|> ifopt
 
-shebang :: Parser MacCxtNode
-shebang = try $ Shebang
+shebang :: Parser CNode
+shebang = try $ ShebangCNode
                 <$> ( char '!' >> skipMany (oneOf " \t") >> many1 (noneOf " \t\n") )
                 <*> ( skipMany (oneOf " \t") >> many (noneOf "\n"))
 
-include :: Parser MacCxtNode
-include = try $ Include <$> ( skipSpaces >> string "include" >> skipSpaces >> many1 (noneOf " \t\n"))
+include :: Parser CNode
+include = try $ IncludeCNode <$> ( skipSpaces >> string "include" >> skipSpaces >> many1 (noneOf " \t\n"))
 
-require :: Parser MacCxtNode
-require = try $ Require <$> ( skipSpaces >> string "require" >> skipSpaces >> many1 (noneOf " \t\n"))
+require :: Parser CNode
+require = try $ RequireCNode <$> ( skipSpaces >> string "require" >> skipSpaces >> many1 (noneOf " \t\n"))
 
-macDef :: Parser MacCxtNode
-macDef = macDef1 <?> "macro defination"
-       where macDef1 = try $ (\(id, params) sig defi end -> MacDef1MNode id sig params defi)
-                             <$> ( skipSpaces >> string "["
-                                >> skipSpaces >> idAndParams )
-                             <*> ( requireSpaces >> string ":"
-                                >> requireSpaces >> macSig )
-                             <*> ( requireSpaces >> string "="
-                                >> requireSpaces >> semicolon )
-                             <*> (skipSpaces >> string "]")
+ifopt :: Parser CNode
+ifopt = try $ IfoptCNode <$> (skipSpaces >> string "ifopt" >> skipSpaces >> many1 (noneOf " \t\n"))
+                         <*> compileTimeExpr
+                         <*> do { elseExprs <- try (do { skipProgram
+                                                       ; string "#"
+                                                       ; skipSpaces
+                                                       ; string "else"
+                                                       ; compileTimeExpr
+                                                       }) <|> return []
+                                ; skipProgram
+                                ; string "#"
+                                ; skipSpaces
+                                ; string "end"
+                                ; return elseExprs
+                                }
+      where skipProgram = skipMany $ noneOf "#"
+
+macDef :: Parser CNode
+macDef = macDef <?> "macro defination"
+       where macDef = try $ (\(id, params) sig defi end -> MacDefCNode id sig params defi)
+                            <$> ( skipSpaces >> string "["
+                               >> skipSpaces >> idAndParams )
+                            <*> ( requireSpaces >> string ":"
+                               >> requireSpaces >> macSig )
+                            <*> ( requireSpaces >> string "="
+                               >> requireSpaces >> semicolon )
+                            <*> (skipSpaces >> string "]")
 
              macSig :: Parser MacSig
              macSig = macSig' <?> "signature"
                     where macSig' = try $ do
                                   -- toplevel の名前は '*'
                                   cxt <- string "*" <|> symbol
-                                  (try $ (\list -> cxt:list)
+                                  (try $ (cxt:)
                                          <$> (requireSpaces >> string "->" >> requireSpaces >> macSig'))
                                     <|> return [cxt]
 
              idAndParams :: Parser (Identifier, MacParams)
-             idAndParams = brackets <|> infixMacDef <|> prefixMacDef <|> suffixMacDef
+             idAndParams = brackets <|> infixMacDef <|> prefixMacDef
                          where brackets = bracket "(" ")" <|>
                                           bracket "[" "]" <|>
                                           bracket "{" "}"
@@ -130,7 +146,7 @@ macDef = macDef1 <?> "macro defination"
                                                        <$> (string beg)
                                                        <*> (skipSpaces >> symbol)
                                                        <*> (skipSpaces >> (string end))
-                               infixOpList = [ (++) <$> string ":" <*> mark
+                               infixOpList = [ (++) <$> string ":" <*> quotedSymbol
                                              , string "=>"
                                              , string "->"
                                              , string ","
@@ -143,12 +159,9 @@ macDef = macDef1 <?> "macro defination"
                                                    <$> symbol
                                                    <*> (skipSpaces >> infixOp)
                                                    <*> (skipSpaces >> symbol)
-                               prefixMacDef = try $ (\id params -> (id, params))
+                               prefixMacDef = try $ (,)
                                                     <$> symbol
                                                     <*> many (try $ requireSpaces >> symbol)
-                               suffixMacDef = try $ (\params id -> (id, params))
-                                                    <$> many1 symbol
-                                                    <*> (skipSpaces >> ((++) <$> string "@" <*> mark))
 
 ----------------------------------------
 -- Runtime Expression
@@ -179,7 +192,7 @@ semicolon = try semicolon' <|> coloninfix <?> "semicolon-expression"
 coloninfix :: Parser Node
 coloninfix = coloninfix' <?> "coloninfix-expression"
            where infixOp = do { skipSpaces
-                              ; x <- ((++) <$> string ":" <*> mark)
+                              ; x <- ((++) <$> string ":" <*> quotedSymbol)
                               ; skipSpaces
                               ; return (FuncallNode . (FuncallNode . SymNode) x)
                               }
@@ -276,28 +289,20 @@ prim = bracket <|> exclamExpr <|> strLit <|> charLit <|> id <|> num
                           float <- (char '.' >> many1 digit) <|> return "0"
                           return $ NumNode $ read $ concat [[sign], int, ".", float]
 
--- hoge :<> fuga とかの構文で使える記号の id
---   使える記号はまだ仕様が曖昧なので
---   ruby -e 'puts [*33..47, *58..64, *91..96, *123..126].map(&:chr).join'
--- で出力したものを使えるようにしてる。
-mark :: Parser Identifier
-mark = mark' <|> symbol
-     where mark' = many1 letter
-           letter = oneOf "!\"#$%&'()*+,-./;<=>?@[\\]^_`{|}~"
-
-
 symbol :: Parser Identifier
-symbol = symbol' <?> "symbol"
-       where symbol'       = try (pure (\beg end -> beg:end)) <*> beginLetter <*> symbolEnd
+symbol = (string "'" >> skipSpaces >> quotedSymbol)
+         <|> symbol' <?> "symbol"
+       where symbol'       = try ((:) <$> beginLetter <*> symbolEnd)
              beginLetter   = letter <|> oneOf "_"             -- シンボルの開始として許される文字。 abc の a
              containLetter = letter <|> digit <|> oneOf "-_"  -- シンボルに含める文字。 abc の b
              endLetter     = letter <|> digit <|> oneOf "_"   -- シンボルの終わりに含める文字。 abc の c
              symbolEnd     = symbolEnd1 <|> return []
-             symbolEnd1    = (try $ do { lett <- containLetter
-                                       ; last <- symbolEnd1
-                                       ; return (lett:last)
-                                       })
+             symbolEnd1    = try ((:) <$> containLetter <*> symbolEnd1)
                              <|> try ((\lett -> [lett]) <$> endLetter)
+
+quotedSymbol :: Parser Identifier
+quotedSymbol = quotedSymbol' <?> "quoted symbol"
+             where quotedSymbol' = many1 (noneOf " \t\n")
 
 exclamExpr :: Parser Node
 exclamExpr = try $ string "!" >> ( excIf <|> excLambda <|> excDefine <|>

@@ -22,6 +22,12 @@ cmpNode program node =
     Left x -> fail $ show x
     Right x -> x `shouldBe` node
 
+cmpCNode :: String -> [CNode] -> Expectation
+cmpCNode program cnodes =
+  case parse compileTimeExpr "(ParserSpec.hs)" program of
+    Left x -> fail $ show x
+    Right x -> x `shouldBe` cnodes
+
 spec :: Spec
 spec = do
 
@@ -176,3 +182,19 @@ spec = do
 
       it "アンダースコアで終わる事ができる" $
         cmpNode "hoge_" (q "hoge_")
+
+    describe "#ifopt" $ do
+      it "ifopt は必ず then と else のリストを持つ" $
+        cmpCNode (concat [ "#ifopt unittest\n"
+                         , "#[ test :about expr : * -> * -> * = !do expr test ]\n"
+                         , "#else\n"
+                         , "#[ test :about expr : * -> * -> * = expr ]\n"
+                         , "#end\n" ])
+                 [IfoptCNode "unittest" [MacDefCNode ":about"
+                                                    ["*","*","*"]
+                                                    ["test","expr"]
+                                                    (DoNode (q "expr") (q "test"))]
+                                       [MacDefCNode ":about"
+                                                    ["*","*","*"]
+                                                    ["test","expr"]
+                                                    (q "expr")]]

@@ -48,31 +48,48 @@ data DefineError = DefineError
 emptyMacroMap :: MacroMap
 emptyMacroMap = M.fromList []
 
-mkMacroMap :: [MacCxtNode] -> IO (Either DefineError MacroMap)
+mkMacroMap :: [CNode] -> IO (Either DefineError MacroMap)
 mkMacroMap [] = return $ Right emptyMacroMap
 mkMacroMap xs = do { r <- include (reverse xs)
-                   ; return $ (pure M.union <*> (define (reverse xs)) <*> r)
+                   ; let mm = (pure M.union <*> (define (reverse xs)) <*> r)
+                     in case mm of
+                          Left err -> return $ Left DefineError
+                          Right mm -> return $
+                            case M.foldlWithKey (\mm' key x' ->
+                                                   do { mm <- mm'
+                                                      ; node <- x'
+                                                      ; return (M.union (M.fromList [(key, node)]) mm)
+                                                      })
+                                                (Right M.empty)
+                                                (M.mapWithKey (\(cxtId, id) (sig, param, node) ->
+                                                                  case macroExpand mm cxtId node of
+                                                                    Left err -> Left err
+                                                                    Right node -> Right (sig, param, node)
+                                                              )
+                                                              mm) of
+                              Left err -> Left DefineError
+                              Right mm -> Right mm
                    }
 
-include :: [MacCxtNode] -> IO (Either DefineError MacroMap)
+include :: [CNode] -> IO (Either DefineError MacroMap)
 include [] = return $ Right emptyMacroMap
 include (x:xs) = do { result <- include xs
                     ; case result of
                       Right mm -> include' mm x
                       Left err -> return $ Left err
                     }
-               where include' mm (Include path) = do
+               where include' mm (IncludeCNode path) = do
                        path <- F.findLib path
                        str <- readFile path
                        case Parsec.parse compileTimeExpr path str of
                          Right cnode -> mkMacroMap cnode
                          Left err -> return $ Left DefineError
                      include' mm _ = return $ Right mm
-define :: [MacCxtNode] -> Either DefineError MacroMap
+define :: [CNode] -> Either DefineError MacroMap
 define [] = Right emptyMacroMap
 define (x:xs) = (define xs) >>= flip define' x
-              where define' :: MacroMap -> MacCxtNode -> Either DefineError MacroMap
-                    define' mm (MacDef1MNode id sig params node) =
+              where define' :: MacroMap -> CNode -> Either DefineError MacroMap
+                    define' mm (MacDefCNode id sig params node) =
                       Right $ M.insert ((last sig), id) ((init sig), params, node) mm
                     define' mm _ = Right mm
 
@@ -125,7 +142,9 @@ macroExpand mm cxt node =
       -- もし params が足りなければ、あふれた args はすべて funcall の引数として扱う
       | otherwise -> (expandArgs sigAndArgs) >>=
                      (\args -> let fargs = drop (length params) args
-                               in macroReplace macroNode (zip params args) >>= (\x -> Right $ foldl FuncallNode x fargs) )
+                               in (do { x <- macroReplace macroNode (zip params args)
+                                      ; macroExpand mm cxt $ foldl FuncallNode x fargs
+                                      }))
       where expandArg (cxt, arg) = macroExpand mm cxt arg
             sigAndArgs :: [(CxtId, Node)]
             sigAndArgs = zip (sig ++ repeat toplevelContext) args
