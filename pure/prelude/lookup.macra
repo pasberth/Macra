@@ -3,12 +3,14 @@
 #[ caar xs : * -> * = !car !car xs ]
 #[ cadar xs : * -> * = !car !cdr !car xs ]
 
-def lookup key, pairs =>
+def lookup key, pairs,
+{
   !if (not pairs)
       nil
       !if !equal key (caar pairs)
           (cadar pairs)
           (lookup key (cdr pairs))
+}
 
 ; puts (lookup 1 !cons !cons 1 !cons 2 nil !cons !cons 3 !cons 4 nil nil)
 ; puts (lookup 3 !cons !cons 1 !cons 2 nil !cons !cons 3 !cons 4 nil nil)
