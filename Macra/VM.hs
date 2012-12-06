@@ -19,7 +19,7 @@ instance Show Value where
   show (Double i) = show i
   show (List xs) = concat ["(", concat (L.intersperse " " (map show xs)), ")"]
   show (Closure param body _ _) = let params = param:extractParams body
-                                  in concat ["<f ", concat . L.intersperse " " $ params, ">"]
+                                  in concat ["<f :: ", concat . L.intersperse " -> " $ params, ">"]
   show (Thunk body e) = show body
   show (Refered val idf) = concat [show idf, show ":", show val]
 
