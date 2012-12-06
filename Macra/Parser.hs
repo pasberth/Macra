@@ -214,16 +214,16 @@ funcall = funcall' <?> "funcall-expression"
 
 
 -- arrow-expression:
---   primary-expression => funcall-expression
---   primary-expression -> funcall-expression
---   primary-expression , funcall-expression
+--   primary-expression => arrow-expression
+--   primary-expression -> arrow-expression
+--   primary-expression , arrow-expression
 --   primary-expression
 arrow :: Parser Node
 arrow = arrow' <|> prim <?> "arrow-expression"
       where arrow' = try $ (\expr1 sym -> FuncallNode (FuncallNode (SymNode sym) expr1))
                            <$> prim
                            <*> (skipSpaces >> arrowMark)
-                           <*> (skipSpaces >> funcall)
+                           <*> (skipSpaces >> arrow)
 
             arrowMark = foldl (\x mark -> x <|> (try $ string mark))
                               (try $ string $ head arrowList)
