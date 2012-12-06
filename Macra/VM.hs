@@ -18,9 +18,15 @@ instance Show Value where
   show (Char c) = [c]
   show (Double i) = show i
   show (List xs) = concat ["(", concat (L.intersperse " " (map show xs)), ")"]
-  show (Closure var body _ _) = concat [show "Close: ", show var, show body]
+  show (Closure param body _ _) = let params = param:extractParams body
+                                  in concat ["<f ", concat . L.intersperse " " $ params, ">"]
   show (Thunk body e) = show body
   show (Refered val idf) = concat [show idf, show ":", show val]
+
+extractParams :: Inst -> [Identifier]
+-- とりあえず !lambda x !lambda y !lambda z みたいのだけは表示できるように
+extractParams (CloseInst param body _) = param : extractParams body
+extractParams _ = []
 
 type Identifier = String
 data Inst = FrameInst  Inst       Inst           --hasnext
