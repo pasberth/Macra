@@ -14,4 +14,13 @@ namespace Bool
 !define true (Bool "true");
 !define false (Bool "false");
 !print (true 1 2);
-!print (false 1 2)
+!print (false 1 2);
+
+
+#[ import _namespace msg : * -> * -> *      = _namespace msg ]
+#[ importing :as id     : * -> symbol -> * = !define id importing ]
+
+import Bool "true" :as bTrue;
+import Bool "false" :as bFalse;
+!print bTrue;
+!print bFalse
