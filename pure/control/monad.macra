@@ -1,0 +1,7 @@
+#[ a; b : *        -> *   -> *   = !do a b ]
+#[ (a)  : *        -> *          = a ]
+
+#[ {x}        : Monad  -> Monad          = !lambda a (bind (unit a) x) ]
+#[ x; y       : Monad  -> Monad -> Monad = !lambda a (bind (bind (unit a) x) y) ]
+#[ id := expr : symbol -> *     -> Monad = !lambda id (unit expr) ]
+#[ id => expr : symbol -> *     -> Monad = !lambda id (expr; unit id) ]

@@ -1,43 +1,46 @@
-#[ a; b : toplevel -> toplevel -> toplevel
-        = !do a b ]
+#[ a; b : *        -> *   -> *   = !do a b ]
+#[ (a)  : *        -> *          = a ]
+#[ {a}  : function -> *          = a ]
+#[ [a]  : list     -> *          = a ]
 
-#[ (a) : toplevel -> toplevel
-       = a ]
+----------------------------------------
+  Standard IO
+----------------------------------------
+#[ puts a : * -> * = !print a ]
 
-#[ {a} : function -> toplevel
-       = a ]
+----------------------------------------
+  Logical Expressions
+----------------------------------------
+#[ not a   : * -> *      = !if a nil 0   ]
+#[ and a b : * -> * -> * = !if a b   nil ]
+#[ or  a b : * -> * -> * = !if a 0   b   ]
 
-#[ [a] : list -> toplevel
-       = a ]
+----------------------------------------
+  Conditional Expressions
+----------------------------------------
+#[ if a b c : * -> * -> * = !if a b c ]
 
-#[ not a : toplevel -> toplevel
-         = !if a nil 0 ]
+----------------------------------------
+  Function Expressions
+----------------------------------------
+#[ def id fn : symbol -> function -> *        = !define id fn ]
+#[ a => b    : symbol -> *        -> function = !lambda a b   ]
+#[ a, b      : symbol -> function -> function = !lambda a b   ]
 
-#[ and a b : toplevel -> toplevel -> toplevel
-           = !if a b nil ]
+----------------------------------------
+  List Expressions
+----------------------------------------
+#[ car xs     : * -> *            = !car xs    ]
+#[ cdr xs     : * -> *            = !cdr xs    ]
+#[ x :cons xs : * -> *    -> list = !cons x xs ]
+#[ a, b       : * -> list -> list = !cons a b  ]
+#[ a; b       : * -> list -> list = !cons a b  ]
 
-#[ or a b : toplevel -> toplevel -> toplevel
-          = !if a nil b ]
 
-#[ def id fn : symbol -> function -> toplevel
-             = !define id fn ]
-
-#[ a => b : symbol -> toplevel -> function
-          = !lambda a b ]
-
-#[ a, b : symbol -> function -> function
-        = !lambda a b ]
-
-#[ a, b : toplevel -> list -> list
-        = !cons a b ]
-
-#[ a; b : toplevel -> list -> list
-        = !cons a b ]
-
-def unit a =>
+def 'Control.Monad.State.unit a =>
   { s => [a, s, nil] };
 
-def bind m, k =>
+def 'Control.Monad.State.bind m, k =>
   { s =>
     ( !define result (m s)
     ; !define a !car result
@@ -46,34 +49,29 @@ def bind m, k =>
     )
   };
 
-!print (bind (bind (unit 1)
-                   { a => (!print a; (unit 2)) })
-             { a => (!print a; (unit 3)) }
-             0);
+#include control/monad
+#[ eval-state initialVal monad : * -> Monad -> *
+     = !lambda unit !lambda bind
+             (bind (unit initialVal) monad nil)
+           'Control.Monad.State.bind
+         'Control.Monad.State.unit ]
 
-#[ eval-state a m : toplevel -> state -> toplevel
-                  = bind (m (unit a)) { x => unit x } nil ]
+--------------------------------------------------
+こう置換されるはず。。。
+!define bind 'Control.Monad.State.bind ;
+!define unit 'Control.Monad.State.unit ;
+!define initialVal 1;
 
-#[ {x} : state -> state
-       = !lambda a (x a) ]
 
-#[ x; y : state -> state -> state
-        = !lambda a (bind (x a) y) ]
+!print ((bind (unit initialVal)
+      (!lambda a (bind (unit a)
+                       (!lambda a (bind (bind (unit a)
+	                                      (!lambda id (!print id; unit 2)))
+		                        (!lambda id (!print id; unit 3))))))
+      nil))
+--------------------------------------------------
 
-#[ begin : state = !lambda a a ]
-
-#[ id := expr : symbol -> toplevel -> state
-              = !lambda id (unit expr) ]
-
-#[ id => expr : symbol -> toplevel -> state
-              = !lambda id (expr; unit id) ]
-
-!print (eval-state
-  1
-  { begin
-  ; a => !print a
-  ; a := 5
-  ; a => !print a
-  ; a := 3
-  ; a => !print a
-  })
+!print ( eval-state 1
+         { a => (!print a; 2)
+         ; a => (!print a; 3)
+         } )
