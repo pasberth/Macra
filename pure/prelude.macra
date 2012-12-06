@@ -33,5 +33,4 @@
 #[ car xs     : * -> *            = !car xs    ]
 #[ cdr xs     : * -> *            = !cdr xs    ]
 #[ x :cons xs : * -> *    -> list = !cons x xs ]
-#[ a, b       : * -> list -> list = !cons a b  ]
 #[ a; b       : * -> list -> list = !cons a b  ]

@@ -1,4 +1,4 @@
 #include prelude.macra
 
-def flip f, x, y => f y x
-; flip { x, y => puts [x, y, nil] } 1 2
+def flip f, x, y, { f y x }
+; flip x, y, { puts [x; y; nil] } 1 2
