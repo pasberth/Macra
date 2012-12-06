@@ -1,7 +1,7 @@
 #[ a; b : *        -> *   -> *   = !do a b ]
 #[ (a)  : *        -> *          = a ]
 
-#[ {x}        : Monad  -> Monad          = !lambda a !funcall bind !funcall unit a x) ]
-#[ x; y       : Monad  -> Monad -> Monad = !lambda a !funcall bind !funcall bind !funcall unit a x y ]
+#[ {x}        : Monad  -> Monad          = x ]
+#[ x; y       : Monad  -> Monad -> Monad = !lambda a !funcall !funcall bind !funcall !funcall bind !funcall unit a x y ]
 #[ id := expr : symbol -> *     -> Monad = !lambda id !funcall unit expr ]
 #[ id => expr : symbol -> *     -> Monad = !lambda id !do expr !funcall unit id ]
