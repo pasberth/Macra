@@ -68,9 +68,8 @@ data DefineError = DefineError
 emptyMacroMap :: MacroMap
 emptyMacroMap = M.fromList []
 
---nodeToMNode :: Node -> MNode
---nodeToMNode (FuncallNode node1 node2) = FuncallMNode (nodeToMNode node1) (nodeToMNode node2)
---nodeToMNode node = PrimMNode node
+nodeToMNode :: Node -> MNode
+nodeToMNode (FuncallNode node1 node2) = FuncallMNode (nodeToMNode node1) (nodeToMNode node2)
 
 mkMacroMap :: [CNode] -> IO (Either DefineError MacroMap)
 mkMacroMap [] = return $ Right emptyMacroMap
@@ -119,47 +118,51 @@ define (x:xs) = (define xs) >>= flip define' x
 
 toplevelContext = "*"
 
+macroExpand :: MacroMap -> P.CxtId -> Node -> Either ExpandError Node
+macroExpand mm cxt node = check (macroExpandC mm cxt (nodeToMNode node))
+                        where check (UnreplacedMNode _) = Left ExpandError
+                              check (SymMNode sym) = Right (SymNode sym)
 -- MNode を展開する。
 -- 戻り値の MNode に UnreplacedMNode は含まれているべきでない.
 -- 含まれている場合はエラーにすべき.
-macroExpand :: MacroMap -> P.CxtId -> MNode -> MNode
-macroExpand mm cxt mnode@(SymMNode id) =
+macroExpandC :: MacroMap -> P.CxtId -> MNode -> MNode
+macroExpandC mm cxt mnode@(SymMNode id) =
   case M.lookup (cxt, id) mm of
     Just macro -> UnreplacedMNode macro
     Nothing -> mnode
-macroExpand _ _ mnode@NilMNode = mnode
-macroExpand _ _ mnode@(CharMNode _) = mnode
-macroExpand _ _ mnode@(NumMNode _) = mnode
-macroExpand mm _ (IfMNode a b c) =
-  IfMNode (macroExpand mm toplevelContext a)
-          (macroExpand mm toplevelContext b)
-          (macroExpand mm toplevelContext c)
-macroExpand mm _ (LambdaMNode var b) =
-  LambdaMNode var (macroExpand mm toplevelContext b)
-macroExpand mm _ (DefineMNode var b) =
-  DefineMNode var (macroExpand mm toplevelContext b)
-macroExpand mm _ (PrintMNode a) =
-  PrintMNode (macroExpand mm toplevelContext a)
-macroExpand mm _ (ConsMNode a b) =
-  ConsMNode (macroExpand mm toplevelContext a)
-            (macroExpand mm toplevelContext b)
-macroExpand mm _ (CarMNode a) =
-  CarMNode (macroExpand mm toplevelContext a)
-macroExpand mm _ (CdrMNode a) =
-  CdrMNode (macroExpand mm toplevelContext a)
-macroExpand mm _ (DoMNode a b) =
-  DoNode (macroExpand mm toplevelContext a)
-         (macroExpand mm toplevelContext b)
-macroExpand mm _ (EqualMNode a b) =
-  EqualMNode (macroExpand mm toplevelContext a)
-             (macroExpand mm toplevelContext b)
-macroExpand mm cxt (FuncallMNode n1 n2) =
-  case macroExpand mm cxt n1 of
+macroExpandC _ _ mnode@NilMNode = mnode
+macroExpandC _ _ mnode@(CharMNode _) = mnode
+macroExpandC _ _ mnode@(NumMNode _) = mnode
+macroExpandC mm _ (IfMNode a b c) =
+  IfMNode (macroExpandC mm toplevelContext a)
+          (macroExpandC mm toplevelContext b)
+          (macroExpandC mm toplevelContext c)
+macroExpandC mm _ (LambdaMNode var b) =
+  LambdaMNode var (macroExpandC mm toplevelContext b)
+macroExpandC mm _ (DefineMNode var b) =
+  DefineMNode var (macroExpandC mm toplevelContext b)
+macroExpandC mm _ (PrintMNode a) =
+  PrintMNode (macroExpandC mm toplevelContext a)
+macroExpandC mm _ (ConsMNode a b) =
+  ConsMNode (macroExpandC mm toplevelContext a)
+            (macroExpandC mm toplevelContext b)
+macroExpandC mm _ (CarMNode a) =
+  CarMNode (macroExpandC mm toplevelContext a)
+macroExpandC mm _ (CdrMNode a) =
+  CdrMNode (macroExpandC mm toplevelContext a)
+macroExpandC mm _ (DoMNode a b) =
+  DoNode (macroExpandC mm toplevelContext a)
+         (macroExpandC mm toplevelContext b)
+macroExpandC mm _ (EqualMNode a b) =
+  EqualMNode (macroExpandC mm toplevelContext a)
+             (macroExpandC mm toplevelContext b)
+macroExpandC mm cxt (FuncallMNode n1 n2) =
+  case macroExpandC mm cxt n1 of
     UnreplacedMNode (cxt, param, mnode) ->
-      macroExpand (macroReplace mnode param (macroExpand mm cxt n2))
-    mnode -> FuncallMNode mnode (macroExpand mm toplevelContext n2)
-macroExpand mm cxt mnode@(UnreplacedMNode _) = mnode
-macroExpand mm cxt mnode@(ReplacedMNode _) = mnode
+      macroExpandC (macroReplace mnode param (macroExpandC mm cxt n2))
+    mnode -> FuncallMNode mnode (macroExpandC mm toplevelContext n2)
+macroExpandC mm cxt mnode@(UnreplacedMNode _) = mnode
+macroExpandC mm cxt mnode@(ReplacedMNode _) = mnode
 
 
 macroReplace :: MNode -> P.Identifier -> MNode -> MNode
