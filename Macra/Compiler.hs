@@ -45,6 +45,7 @@ data MNode = SymMNode P.Identifier
            | EqualMNode MNode MNode
            | ReplacedMNode MNode
            | UnreplacedMNode Macro
+           | ErrorMNode ExpandError
            deriving (Eq, Show)
 
 -- compile 関数がコンパイルに失敗したとき返す型
@@ -154,8 +155,11 @@ macroExpand mm _ (EqualMNode a b) =
              (macroExpand mm toplevelContext b)
 macroExpand mm cxt (FuncallMNode n1 n2) =
   case macroExpand mm cxt n1 of
-    UnreplacedMNode (cxt, param, node) -> macroReplace node param (macroExpand mm cxt n2)
-    mnode -> FuncallMNode mnode n2
+    UnreplacedMNode (cxt, param, mnode) ->
+      macroExpand (macroReplace mnode param (macroExpand mm cxt n2))
+    mnode -> FuncallMNode mnode (macroExpand mm toplevelContext n2)
+macroExpand mm cxt mnode@(UnreplacedMNode _) = mnode
+macroExpand mm cxt mnode@(ReplacedMNode _) = mnode
 
 
 macroReplace :: MNode -> P.Identifier -> MNode -> MNode
@@ -174,7 +178,7 @@ macroReplace (IfMNode a b c) param arg =
          (macroReplace c param arg)
 macroReplace (LambdaMNode var b) param arg =
   LambdaMNode (macroReplaceSym var param arg)
-             (macroReplace b param arg)
+              (macroReplace b param arg)
 macroReplace (DefineMNode var b) param arg =
   DefineNode (macroReplaceSym var param arg)
              (macroReplace b param arg)
