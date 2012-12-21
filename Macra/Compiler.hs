@@ -68,6 +68,24 @@ data DefineError = DefineError
 emptyMacroMap :: MacroMap
 emptyMacroMap = M.fromList []
 
+-- MNode を Node にする。
+-- UnreplacedMNode などが含まれている場合はエラー
+mnodeToNode :: MNode -> Either ExpandError Node
+mnodeToNode (SymMNode sym) = Right $ SymNode sym
+mnodeToNode (CharMNode ch) = Right $ CharNode ch
+mnodeToNode (NumMNode num) = Right $ NumNode num
+mnodeToNode NilMNode = Right $ NilNode
+mnodeToNode (LambdaMNode var body) = LambdaNode var <$> (mnodeToNode body)
+mnodeToNode (DefineMNode var expr) = DefineNode var <$> (mnodeToNode expr)
+mnodeToNode (FuncallMNode node1 node2) = FuncallNode <$> (mnodeToNode node1) <*> (mnodeToNode node2)
+mnodeToNode (PrintMNode expr) = PrintNode <$> (mnodeToNode expr)
+mnodeToNode (ConsMNode node1 node2) = ConsNode <$> (mnodeToNode node1) <*> (mnodeToNode node2)
+mnodeToNode (CarMNode expr) = CarNode <$> (mnodeToNode expr)
+mnodeToNode (CdrMNode expr) = CdrNode <$> (mnodeToNode expr)
+mnodeToNode (DoMNode node1 node2) = DoNode <$> (mnodeToNode node1) <*> (mnodeToNode node2)
+mnodeToNode (NativeMNode id) = Right $ NativeNode id
+mnodeToNode (EqualMNode node1 node2) = EqualNode <$> (mnodeToNode node1) <*> (mnodeToNode node2)
+
 nodeToMNode :: Node -> MNode
 nodeToMNode (SymNode sym) = SymMNode sym
 nodeToMNode (CharNode ch) = CharMNode ch
@@ -117,10 +135,7 @@ define (x:xs) = (define xs) >>= flip define' x
 toplevelContext = "*"
 
 macroExpand :: MacroMap -> P.CxtId -> Node -> Either ExpandError Node
-macroExpand mm cxt node = check (macroExpandC mm cxt (nodeToMNode node))
-                        where check (UnreplacedMNode _) = Left ExpandError
-                              check (SymMNode sym) = Right (SymNode sym)
-                              -- TODO: ここも総なめしないといけない。。
+macroExpand mm cxt node = mnodeToNode (macroExpandC mm cxt (nodeToMNode node))
 -- MNode を展開する。
 -- 戻り値の MNode に UnreplacedMNode は含まれているべきでない.
 -- 含まれている場合はエラーにすべき.
