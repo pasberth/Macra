@@ -74,24 +74,7 @@ nodeToMNode (FuncallNode node1 node2) = FuncallMNode (nodeToMNode node1) (nodeTo
 mkMacroMap :: [CNode] -> IO (Either DefineError MacroMap)
 mkMacroMap [] = return $ Right emptyMacroMap
 mkMacroMap xs = do { r <- include (reverse xs)
-                   ; let mm = (pure M.union <*> (define (reverse xs)) <*> r)
-                     in case mm of
-                          Left err -> return $ Left DefineError
-                          Right mm -> return $
-                            case M.foldlWithKey (\mm' key x' ->
-                                                   do { mm <- mm'
-                                                      ; node <- x'
-                                                      ; return (M.union (M.fromList [(key, node)]) mm)
-                                                      })
-                                                (Right M.empty)
-                                                (M.mapWithKey (\(cxtId, id) (sig, param, node) ->
-                                                                  case macroExpand mm cxtId node of
-                                                                    Left err -> Left err
-                                                                    Right node -> Right (sig, param, node)
-                                                              )
-                                                              mm) of
-                              Left err -> Left DefineError
-                              Right mm -> Right mm
+                   ; return (pure M.union <*> (define (reverse xs)) <*> r)
                    }
 
 include :: [CNode] -> IO (Either DefineError MacroMap)
@@ -113,8 +96,10 @@ define [] = Right emptyMacroMap
 define (x:xs) = (define xs) >>= flip define' x
               where define' :: MacroMap -> CNode -> Either DefineError MacroMap
                     define' mm (MacDefCNode id sig params node) =
-                      Right $ M.insert ((last sig), id) ((init sig), params, node) mm
+                      Right $ M.insert ((last sig), id) (curry (init sig) params node) mm
                     define' mm _ = Right mm
+                    curry (cxt:[]) (param:[]) node = (cxt, param, (nodeToMNode node))
+                    curry (cxt:sig) (param:params) node = (cxt, param, (UnreplacedMNode (curry sig params node)))
 
 toplevelContext = "*"
 
@@ -151,15 +136,15 @@ macroExpandC mm _ (CarMNode a) =
 macroExpandC mm _ (CdrMNode a) =
   CdrMNode (macroExpandC mm toplevelContext a)
 macroExpandC mm _ (DoMNode a b) =
-  DoNode (macroExpandC mm toplevelContext a)
+  DoMNode (macroExpandC mm toplevelContext a)
          (macroExpandC mm toplevelContext b)
 macroExpandC mm _ (EqualMNode a b) =
   EqualMNode (macroExpandC mm toplevelContext a)
              (macroExpandC mm toplevelContext b)
 macroExpandC mm cxt (FuncallMNode n1 n2) =
   case macroExpandC mm cxt n1 of
-    UnreplacedMNode (cxt, param, mnode) ->
-      macroExpandC (macroReplace mnode param (macroExpandC mm cxt n2))
+    UnreplacedMNode (cxt', param, mnode) ->
+      macroExpandC mm cxt (macroReplace mnode param (macroExpandC mm cxt' n2))
     mnode -> FuncallMNode mnode (macroExpandC mm toplevelContext n2)
 macroExpandC mm cxt mnode@(UnreplacedMNode _) = mnode
 macroExpandC mm cxt mnode@(ReplacedMNode _) = mnode
@@ -169,7 +154,7 @@ macroReplace :: MNode -> P.Identifier -> MNode -> MNode
 macroReplace mnode@(SymMNode sym) param arg
              | param == sym = arg
              | otherwise = mnode
-macroReplace NilMNode _ _ = NilNode
+macroReplace NilMNode _ _ = NilMNode
 macroReplace mnode@(CharMNode _) _ _ = mnode
 macroReplace mnode@(NumMNode _) _ _ = mnode
 macroReplace (FuncallMNode a b) param arg =
@@ -183,8 +168,8 @@ macroReplace (LambdaMNode var b) param arg =
   LambdaMNode (macroReplaceSym var param arg)
               (macroReplace b param arg)
 macroReplace (DefineMNode var b) param arg =
-  DefineNode (macroReplaceSym var param arg)
-             (macroReplace b param arg)
+  DefineMNode (macroReplaceSym var param arg)
+              (macroReplace b param arg)
 macroReplace (PrintMNode a) param arg =
   PrintMNode (macroReplace a param arg)
 macroReplace (ConsMNode a b) param arg =
@@ -192,27 +177,26 @@ macroReplace (ConsMNode a b) param arg =
             (macroReplace b param arg)
 macroReplace (CarMNode a) param arg =
   CarMNode (macroReplace a param arg)
-macroReplace (CdrNode a) param arg =
-  CdrNode (macroReplace a param arg)
-macroReplace (DoNode a b) param arg =
-  DoNode (macroReplace a param arg)
-         (macroReplace b param arg)
-macroReplace (EqualNode a b) param arg =
+macroReplace (CdrMNode a) param arg =
+  CdrMNode (macroReplace a param arg)
+macroReplace (DoMNode a b) param arg =
+  DoMNode (macroReplace a param arg)
+          (macroReplace b param arg)
+macroReplace (EqualMNode a b) param arg =
   EqualMNode (macroReplace a param arg)
              (macroReplace b param arg)
 
-macroReplaceSym :: P.Identifier -> P.Identifier -> MNode -> Either ExpandError P.Identifier
-macroReplaceSym var param (P.SymNode arg)
-                | param == var = Right arg
-                | otherwise = Right var
+macroReplaceSym :: P.Identifier -> P.Identifier -> MNode -> P.Identifier
+macroReplaceSym var param (SymMNode arg)
+                | param == var = arg
+                | otherwise = var
 
 macroReplaceSym var param arg
                 -- たとえば
                 --   #[ a => b : t = !lambda a b  ] と定義して、
                 -- (1, 2) => x が !lambda (1, 2) x に展開されてしまった場合など。
-                -- TODO: 単に ExpandError ではなく、なにかメッセージを付ける
-                | param == var = Left ExpandError
-                | otherwise = Right var
+                | param == var = error (concat [var, "を", show arg, "で置換しようとしました"])
+                | otherwise = var
 
 compile :: MacroMap -> Node -> Either CompileError Inst 
 compile mm x =
