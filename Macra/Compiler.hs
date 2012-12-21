@@ -77,6 +77,7 @@ mnodeToNode (NumMNode num) = Right $ NumNode num
 mnodeToNode NilMNode = Right $ NilNode
 mnodeToNode (LambdaMNode var body) = LambdaNode var <$> (mnodeToNode body)
 mnodeToNode (DefineMNode var expr) = DefineNode var <$> (mnodeToNode expr)
+mnodeToNode (IfMNode node1 node2 node3) = IfNode <$> (mnodeToNode node1) <*> (mnodeToNode node2) <*> (mnodeToNode node3)
 mnodeToNode (FuncallMNode node1 node2) = FuncallNode <$> (mnodeToNode node1) <*> (mnodeToNode node2)
 mnodeToNode (PrintMNode expr) = PrintNode <$> (mnodeToNode expr)
 mnodeToNode (ConsMNode node1 node2) = ConsNode <$> (mnodeToNode node1) <*> (mnodeToNode node2)
@@ -85,6 +86,9 @@ mnodeToNode (CdrMNode expr) = CdrNode <$> (mnodeToNode expr)
 mnodeToNode (DoMNode node1 node2) = DoNode <$> (mnodeToNode node1) <*> (mnodeToNode node2)
 mnodeToNode (NativeMNode id) = Right $ NativeNode id
 mnodeToNode (EqualMNode node1 node2) = EqualNode <$> (mnodeToNode node1) <*> (mnodeToNode node2)
+mnodeToNode (ReplacedMNode node) = mnodeToNode node
+mnodeToNode (UnreplacedMNode macro) = Left ExpandError
+mnodeToNode (ErrorMNode err) = Left err
 
 nodeToMNode :: Node -> MNode
 nodeToMNode (SymNode sym) = SymMNode sym
@@ -93,6 +97,7 @@ nodeToMNode (NumNode num) = NumMNode num
 nodeToMNode NilNode = NilMNode
 nodeToMNode (LambdaNode var body) = LambdaMNode var (nodeToMNode body)
 nodeToMNode (DefineNode var expr) = DefineMNode var (nodeToMNode expr)
+nodeToMNode (IfNode node1 node2 node3) = IfMNode (nodeToMNode node1) (nodeToMNode node2) (nodeToMNode node3)
 nodeToMNode (FuncallNode node1 node2) = FuncallMNode (nodeToMNode node1) (nodeToMNode node2)
 nodeToMNode (PrintNode expr) = PrintMNode (nodeToMNode expr)
 nodeToMNode (ConsNode node1 node2) = ConsMNode (nodeToMNode node1) (nodeToMNode node2)
