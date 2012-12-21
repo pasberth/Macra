@@ -35,7 +35,7 @@ data MNode = SymMNode P.Identifier
            | IfMNode MNode MNode MNode
            | LambdaMNode P.Identifier MNode
            | DefineMNode P.Identifier MNode
-           |  FuncallMNode MNode MNode
+           | FuncallMNode MNode MNode
            | PrintMNode MNode
            | ConsMNode MNode MNode
            | CarMNode MNode
@@ -69,7 +69,20 @@ emptyMacroMap :: MacroMap
 emptyMacroMap = M.fromList []
 
 nodeToMNode :: Node -> MNode
+nodeToMNode (SymNode sym) = SymMNode sym
+nodeToMNode (CharNode ch) = CharMNode ch
+nodeToMNode (NumNode num) = NumMNode num
+nodeToMNode NilNode = NilMNode
+nodeToMNode (LambdaNode var body) = LambdaMNode var (nodeToMNode body)
+nodeToMNode (DefineNode var expr) = DefineMNode var (nodeToMNode expr)
 nodeToMNode (FuncallNode node1 node2) = FuncallMNode (nodeToMNode node1) (nodeToMNode node2)
+nodeToMNode (PrintNode expr) = PrintMNode (nodeToMNode expr)
+nodeToMNode (ConsNode node1 node2) = ConsMNode (nodeToMNode node1) (nodeToMNode node2)
+nodeToMNode (CarNode expr) = CarMNode (nodeToMNode expr)
+nodeToMNode (CdrNode expr) = CdrMNode (nodeToMNode expr)
+nodeToMNode (DoNode node1 node2) = DoMNode (nodeToMNode node1) (nodeToMNode node2)
+nodeToMNode (NativeNode id) = NativeMNode id
+nodeToMNode (EqualNode node1 node2) = EqualMNode (nodeToMNode node1) (nodeToMNode node2)
 
 mkMacroMap :: [CNode] -> IO (Either DefineError MacroMap)
 mkMacroMap [] = return $ Right emptyMacroMap
@@ -107,6 +120,7 @@ macroExpand :: MacroMap -> P.CxtId -> Node -> Either ExpandError Node
 macroExpand mm cxt node = check (macroExpandC mm cxt (nodeToMNode node))
                         where check (UnreplacedMNode _) = Left ExpandError
                               check (SymMNode sym) = Right (SymNode sym)
+                              -- TODO: ここも総なめしないといけない。。
 -- MNode を展開する。
 -- 戻り値の MNode に UnreplacedMNode は含まれているべきでない.
 -- 含まれている場合はエラーにすべき.
@@ -165,11 +179,17 @@ macroReplace (IfMNode a b c) param arg =
          (macroReplace b param arg)
          (macroReplace c param arg)
 macroReplace (LambdaMNode var b) param arg =
-  LambdaMNode (macroReplaceSym var param arg)
-              (macroReplace b param arg)
+  case macroReplaceSym var param arg of
+    Right var ->
+      LambdaMNode var
+                  (macroReplace b param arg)
+    Left err -> ErrorMNode err
 macroReplace (DefineMNode var b) param arg =
-  DefineMNode (macroReplaceSym var param arg)
-              (macroReplace b param arg)
+  case macroReplaceSym var param arg of
+    Right var ->
+      DefineMNode var
+                  (macroReplace b param arg)
+    Left err -> ErrorMNode err
 macroReplace (PrintMNode a) param arg =
   PrintMNode (macroReplace a param arg)
 macroReplace (ConsMNode a b) param arg =
@@ -185,18 +205,22 @@ macroReplace (DoMNode a b) param arg =
 macroReplace (EqualMNode a b) param arg =
   EqualMNode (macroReplace a param arg)
              (macroReplace b param arg)
+macroReplace mnode@(NativeMNode _) _ _ = mnode
+macroReplace mnode@(ReplacedMNode _) _ _= mnode
+macroReplace mnode@(UnreplacedMNode _) _ _ = mnode
+macroReplace mnode@(ErrorMNode _) _ _ = mnode
 
-macroReplaceSym :: P.Identifier -> P.Identifier -> MNode -> P.Identifier
+macroReplaceSym :: P.Identifier -> P.Identifier -> MNode -> Either ExpandError P.Identifier
 macroReplaceSym var param (SymMNode arg)
-                | param == var = arg
-                | otherwise = var
+                | param == var = Right arg
+                | otherwise = Right var
 
 macroReplaceSym var param arg
                 -- たとえば
                 --   #[ a => b : t = !lambda a b  ] と定義して、
                 -- (1, 2) => x が !lambda (1, 2) x に展開されてしまった場合など。
-                | param == var = error (concat [var, "を", show arg, "で置換しようとしました"])
-                | otherwise = var
+                | param == var = Left ExpandError
+                | otherwise = Right var
 
 compile :: MacroMap -> Node -> Either CompileError Inst 
 compile mm x =
